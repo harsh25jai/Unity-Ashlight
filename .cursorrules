@@ -1,0 +1,31 @@
+# Ashlight — Unity 6 LTS (Cursor)
+
+## Language
+Always use C# for Unity scripts. Target Unity 6 LTS API only.
+
+## Namespaces
+Use namespace `Ashlight.[Module]` for all scripts.
+
+## Patterns
+Prefer composition over inheritance. Use ScriptableObjects for data.
+
+## Singletons
+Use `GameManager` as the only singleton. Everything else uses dependency injection or events.
+
+## Events
+Use Unity Events and C# events for decoupled communication between systems.
+
+## Null checks
+Always null-check component references in `Start()` and `Awake()`.
+
+## Comments
+Add XML doc comments to all public methods and properties.
+
+## Testing
+All new MonoBehaviours must have a corresponding test class.
+
+## Performance
+Avoid `GetComponent` in `Update()`. Cache in `Awake()`/`Start()`.
+
+## Coroutines
+Prefer coroutines for timed effects. Use async/await for file I/O only.

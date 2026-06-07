@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f08f42efa64a411498ab9cd5ae60fbd, type: 3}
+  m_Name: DayNightConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Environment.DayNightConfig
+  dayDuration: 480
+  duskDuration: 120
+  nightEarlyDuration: 300
+  dawnDuration: 120
+  nightGrowthMultiplier: 1.15
+  dayLightIntensity: 1.25
+  nightLightIntensity: 0.15
+  dayFogDensity: 0.01
+  nightFogDensity: 0.06
+  dayAmbientColor: {r: 0.55, g: 0.58, b: 0.65, a: 1}
+  nightAmbientColor: {r: 0.04, g: 0.05, b: 0.12, a: 1}

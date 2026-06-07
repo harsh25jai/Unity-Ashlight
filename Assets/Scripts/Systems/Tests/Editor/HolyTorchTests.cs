@@ -21,27 +21,38 @@ namespace Ashlight.Systems.Tests
         private static GameObject CreateTorchWithFuel(float maxFuel, float currentFuel)
         {
             GameObject torchObject = new GameObject("Torch");
-            GameObject lightObject = new GameObject("TorchLight");
-            lightObject.transform.SetParent(torchObject.transform);
-            Light light = lightObject.AddComponent<Light>();
-            light.type = LightType.Point;
+
+            GameObject pointLightObject = new GameObject("PointLight");
+            pointLightObject.transform.SetParent(torchObject.transform);
+            Light point = pointLightObject.AddComponent<Light>();
+            point.type = LightType.Point;
+
+            GameObject spotLightObject = new GameObject("SpotLight");
+            spotLightObject.transform.SetParent(torchObject.transform);
+            Light spot = spotLightObject.AddComponent<Light>();
+            spot.type = LightType.Spot;
 
             HolyTorch torch = torchObject.AddComponent<HolyTorch>();
 
-            var maxFuelField = typeof(HolyTorch).GetField(
+            typeof(HolyTorch).GetField(
                 "maxFuel",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            maxFuelField?.SetValue(torch, maxFuel);
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(torch, maxFuel);
 
-            var currentFuelField = typeof(HolyTorch).GetField(
+            typeof(HolyTorch).GetField(
                 "_currentFuel",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            currentFuelField?.SetValue(torch, currentFuel);
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(torch, currentFuel);
 
-            var lightField = typeof(HolyTorch).GetField(
-                "_torchLight",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            lightField?.SetValue(torch, light);
+            typeof(HolyTorch).GetField(
+                "pointLight",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(torch, point);
+
+            typeof(HolyTorch).GetField(
+                "spotLight",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(torch, spot);
 
             return torchObject;
         }

@@ -5,7 +5,7 @@ using UnityEngine.Events;
 namespace Ashlight.Systems
 {
     /// <summary>
-    /// Manages torch fuel drain, point-light output, low-fuel flicker, and torch lifecycle events.
+    /// Manages torch fuel drain, dual-light output, low-fuel flicker, and torch lifecycle events.
     /// </summary>
     [DisallowMultipleComponent]
     public class HolyTorch : MonoBehaviour
@@ -13,16 +13,24 @@ namespace Ashlight.Systems
         private const float PassiveDrainInterval = 3f;
         private const float CombatDrainInterval = 1f;
         private const float LowFuelThreshold = 0.2f;
-        private const float MinLightRange = 3f;
-        private const float MaxLightRange = 8f;
-        private const float MinLightIntensity = 0.2f;
-        private const float MaxLightIntensity = 3f;
         private const float FlickerIntensityVariance = 0.3f;
         private const float FlickerWaitMin = 0.1f;
         private const float FlickerWaitMax = 0.3f;
 
+        private const float PointMinIntensity = 0.2f;
+        private const float PointMaxIntensity = 3f;
+        private const float PointMinRange = 2f;
+        private const float PointMaxRange = 8f;
+
+        private const float SpotMinIntensity = 0f;
+        private const float SpotMaxIntensity = 2f;
+        private const float SpotMinRange = 3f;
+        private const float SpotMaxRange = 10f;
+        private const float SpotAngle = 45f;
+
         [SerializeField] private float maxFuel = 100f;
-        [SerializeField] private Light _torchLight;
+        [SerializeField] private Light pointLight;
+        [SerializeField] private Light spotLight;
 
         [Header("Events")]
         [SerializeField] private UnityEvent _onTorchLit;
@@ -54,14 +62,32 @@ namespace Ashlight.Systems
 
         private void Awake()
         {
-            if (_torchLight == null)
+            if (pointLight == null || spotLight == null)
             {
-                _torchLight = GetComponentInChildren<Light>();
+                Light[] childLights = GetComponentsInChildren<Light>();
+                foreach (Light childLight in childLights)
+                {
+                    if (pointLight == null && childLight.type == LightType.Point)
+                    {
+                        pointLight = childLight;
+                    }
+                    else if (spotLight == null && childLight.type == LightType.Spot)
+                    {
+                        spotLight = childLight;
+                    }
+                }
             }
 
-            if (_torchLight == null)
+            if (pointLight == null)
             {
-                Debug.LogError($"{nameof(HolyTorch)} requires a child {nameof(Light)} reference.", this);
+                Debug.LogError($"{nameof(HolyTorch)} requires a Point {nameof(Light)} reference.", this);
+                enabled = false;
+                return;
+            }
+
+            if (spotLight == null)
+            {
+                Debug.LogError($"{nameof(HolyTorch)} requires a Spot {nameof(Light)} reference.", this);
                 enabled = false;
                 return;
             }
@@ -72,12 +98,13 @@ namespace Ashlight.Systems
             }
 
             _isExtinguished = _currentFuel <= 0f;
+            spotLight.spotAngle = SpotAngle;
             ApplyLightState();
         }
 
         private void Start()
         {
-            if (_torchLight == null || _currentFuel <= 0f)
+            if (!HasValidLights() || _currentFuel <= 0f)
             {
                 return;
             }
@@ -88,7 +115,7 @@ namespace Ashlight.Systems
 
         private void OnEnable()
         {
-            if (_torchLight == null)
+            if (!HasValidLights())
             {
                 return;
             }
@@ -117,7 +144,7 @@ namespace Ashlight.Systems
         /// <param name="amount">Fuel amount to add.</param>
         public void Refuel(float amount)
         {
-            if (amount <= 0f || _torchLight == null)
+            if (amount <= 0f || !HasValidLights())
             {
                 return;
             }
@@ -135,6 +162,11 @@ namespace Ashlight.Systems
 
             ApplyLightState();
             UpdateFlickerRoutine();
+        }
+
+        private bool HasValidLights()
+        {
+            return pointLight != null && spotLight != null;
         }
 
         private void StartDrainRoutine()
@@ -213,29 +245,41 @@ namespace Ashlight.Systems
 
         private void ApplyLightState()
         {
-            if (_torchLight == null)
+            if (!HasValidLights())
             {
                 return;
             }
 
             if (_currentFuel <= 0f)
             {
-                _torchLight.enabled = false;
-                _torchLight.range = MinLightRange;
-                _torchLight.intensity = 0f;
+                pointLight.enabled = false;
+                pointLight.range = PointMinRange;
+                pointLight.intensity = 0f;
+
+                spotLight.enabled = false;
+                spotLight.range = SpotMinRange;
+                spotLight.intensity = 0f;
+                spotLight.spotAngle = SpotAngle;
                 return;
             }
 
-            _torchLight.enabled = true;
             float fuelPercent = FuelPercent;
-            _torchLight.range = Mathf.Lerp(MinLightRange, MaxLightRange, fuelPercent);
-            float baseIntensity = Mathf.Lerp(MinLightIntensity, MaxLightIntensity, fuelPercent);
-            _torchLight.intensity = Mathf.Max(0f, baseIntensity + _flickerIntensityOffset);
+
+            pointLight.enabled = true;
+            pointLight.range = Mathf.Lerp(PointMinRange, PointMaxRange, fuelPercent);
+            float pointBaseIntensity = Mathf.Lerp(PointMinIntensity, PointMaxIntensity, fuelPercent);
+            pointLight.intensity = Mathf.Max(0f, pointBaseIntensity + _flickerIntensityOffset);
+
+            spotLight.enabled = true;
+            spotLight.range = Mathf.Lerp(SpotMinRange, SpotMaxRange, fuelPercent);
+            spotLight.spotAngle = SpotAngle;
+            float spotBaseIntensity = Mathf.Lerp(SpotMinIntensity, SpotMaxIntensity, fuelPercent);
+            spotLight.intensity = Mathf.Max(0f, spotBaseIntensity + _flickerIntensityOffset);
         }
 
         private void UpdateFlickerRoutine()
         {
-            if (_torchLight == null || _currentFuel <= 0f)
+            if (!HasValidLights() || _currentFuel <= 0f)
             {
                 StopFlickerRoutine();
                 return;

@@ -36,6 +36,7 @@ namespace Ashlight.Ghost
         [SerializeField] private GhostPerceptionSystem perception;
         [SerializeField] private Transform player;
         [SerializeField] private Renderer ghostRenderer;
+        [SerializeField] [Range(0f, 1f)] private float retreatLightThreshold = 0.7f;
 
         [Header("Events")]
         [SerializeField] private UnityEvent _onAttackPlayer;
@@ -211,17 +212,17 @@ namespace Ashlight.Ghost
         /// Determines whether torch light should force a retreat.
         /// </summary>
         /// <param name="lightLevel">Sampled torch light from 0 to 1.</param>
-        /// <param name="lightResistance">Ghost light resistance from 0 to 1.</param>
+        /// <param name="threshold">Light level above which the ghost retreats.</param>
         /// <returns>True when the ghost should retreat.</returns>
-        public static bool ShouldRetreatFromLight(float lightLevel, float lightResistance)
+        public static bool ShouldRetreatFromLight(float lightLevel, float threshold)
         {
-            return lightLevel > 1f - lightResistance;
+            return lightLevel > threshold;
         }
 
         private bool ShouldRetreat()
         {
             float lightLevel = perception.GetLightLevelAtPosition(transform.position);
-            return ShouldRetreatFromLight(lightLevel, ghostType.LightResistance);
+            return ShouldRetreatFromLight(lightLevel, retreatLightThreshold);
         }
 
         private void ApplyPerceptionTransitions(PerceptionLevel perceptionLevel)

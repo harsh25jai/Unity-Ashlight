@@ -1239,7 +1239,6 @@ MonoBehaviour:
     weight: 0
   dayNightCycle: {fileID: 1147873195}
   player: {fileID: 1714774886}
-  spawnVisibilityCamera: {fileID: 330585545}
 --- !u!1 &1147873194
 GameObject:
   m_ObjectHideFlags: 0
@@ -1852,9 +1851,17 @@ PrefabInstance:
       propertyPath: player
       value: 
       objectReference: {fileID: 1714774886}
+    - target: {fileID: 1943888514108239003, guid: e363b614bdfea48ab8b31c10c061afe5, type: 3}
+      propertyPath: retreatLightThreshold
+      value: 0.95
+      objectReference: {fileID: 0}
     - target: {fileID: 2469991766261861540, guid: e363b614bdfea48ab8b31c10c061afe5, type: 3}
       propertyPath: m_Name
       value: Ghost_Wanderer
+      objectReference: {fileID: 0}
+    - target: {fileID: 2469991766261861540, guid: e363b614bdfea48ab8b31c10c061afe5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5355452784084200076, guid: e363b614bdfea48ab8b31c10c061afe5, type: 3}
       propertyPath: _player
@@ -1866,7 +1873,7 @@ PrefabInstance:
       objectReference: {fileID: 633351464}
     - target: {fileID: 7199222708832898857, guid: e363b614bdfea48ab8b31c10c061afe5, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 7199222708832898857, guid: e363b614bdfea48ab8b31c10c061afe5, type: 3}
       propertyPath: m_LocalPosition.y

@@ -279,6 +279,17 @@ namespace Ashlight.Ghost
             gameObject.SetActive(false);
         }
 
+        /// <summary>Forces this ghost to retreat immediately.</summary>
+        public void ForceRetreat()
+        {
+            if (!_isActive || _isPerishing)
+            {
+                return;
+            }
+
+            ChangeState(GhostState.Retreat);
+        }
+
         /// <summary>Applies torch damage to this ghost.</summary>
         /// <param name="damage">Damage amount.</param>
         public void TakeTorchDamage(float damage)

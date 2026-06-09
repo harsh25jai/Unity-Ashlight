@@ -46,6 +46,9 @@ namespace Ashlight.Systems
         private Coroutine _drainCoroutine;
         private Coroutine _flickerCoroutine;
 
+        /// <summary>Gets the maximum torch fuel capacity.</summary>
+        public float MaxFuel => maxFuel;
+
         /// <summary>Gets current fuel as a 0-1 percentage.</summary>
         public float FuelPercent => maxFuel > 0f ? Mathf.Clamp01(_currentFuel / maxFuel) : 0f;
 

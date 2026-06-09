@@ -43,6 +43,7 @@ namespace Ashlight.Ghost
         private readonly List<GhostAIController> _activeGhosts = new List<GhostAIController>();
         private int _maxActiveGhosts = 3;
         private Coroutine _spawnCoroutine;
+        private BoxCollider _spawnExclusionZone;
 
         private void Awake()
         {
@@ -106,6 +107,19 @@ namespace Ashlight.Ghost
             }
         }
 
+        /// <summary>Blocks ghost spawns inside the given trigger volume.</summary>
+        /// <param name="exclusionZone">Church or safe-zone collider.</param>
+        public void SetSpawnExclusionZone(BoxCollider exclusionZone)
+        {
+            _spawnExclusionZone = exclusionZone;
+        }
+
+        /// <summary>Clears the active spawn exclusion zone.</summary>
+        public void ClearSpawnExclusionZone()
+        {
+            _spawnExclusionZone = null;
+        }
+
         /// <summary>
         /// Spawns a ghost when pool capacity and phase limits allow.
         /// </summary>
@@ -129,6 +143,11 @@ namespace Ashlight.Ghost
             }
 
             Vector3 spawnPosition = spawnPoint.position;
+            if (IsPositionInExclusionZone(spawnPosition))
+            {
+                return;
+            }
+
             ghost.transform.position = spawnPosition;
 
             NavMeshAgent agent = ghost.GetComponent<NavMeshAgent>();
@@ -233,7 +252,7 @@ namespace Ashlight.Ghost
 
             foreach (WeightedSpawnPoint spawnPoint in spawnPoints)
             {
-                if (spawnPoint?.Point != null)
+                if (spawnPoint?.Point != null && !IsPositionInExclusionZone(spawnPoint.Point.position))
                 {
                     validPoints.Add(spawnPoint.Point);
                 }
@@ -245,6 +264,16 @@ namespace Ashlight.Ghost
             }
 
             return validPoints[Random.Range(0, validPoints.Count)];
+        }
+
+        private bool IsPositionInExclusionZone(Vector3 position)
+        {
+            if (_spawnExclusionZone == null)
+            {
+                return false;
+            }
+
+            return _spawnExclusionZone.bounds.Contains(position);
         }
     }
 }

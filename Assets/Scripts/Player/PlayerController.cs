@@ -50,6 +50,24 @@ namespace Ashlight.Player
         /// <summary>Gets the current stamina value.</summary>
         public float CurrentStamina => _currentStamina;
 
+        /// <summary>Adds stamina up to the player's maximum.</summary>
+        /// <param name="amount">Stamina amount to restore.</param>
+        public void AddStamina(float amount)
+        {
+            if (amount <= 0f)
+            {
+                return;
+            }
+
+            _currentStamina = Mathf.Min(GetMaxStamina(), _currentStamina + amount);
+
+            if (_currentStamina > 0f && _staminaWasDepleted)
+            {
+                _staminaWasDepleted = false;
+                _onStaminaRecovered?.Invoke();
+            }
+        }
+
         /// <summary>Gets the interact input action.</summary>
         public InputAction InteractAction => _interactAction;
 

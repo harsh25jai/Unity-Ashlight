@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using Ashlight.Environment;
+using Ashlight.Systems;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -36,6 +37,7 @@ namespace Ashlight.Ghost
         [SerializeField] private List<WeightedSpawnPoint> spawnPoints = new List<WeightedSpawnPoint>();
         [SerializeField] private DayNightCycle dayNightCycle;
         [SerializeField] private Transform player;
+        [SerializeField] private HolyTorch playerTorch;
 
         private readonly List<GhostAIController> _pool = new List<GhostAIController>();
         private readonly List<GhostAIController> _activeGhosts = new List<GhostAIController>();
@@ -67,9 +69,14 @@ namespace Ashlight.Ghost
                 }
             }
 
+            if (playerTorch == null && player != null)
+            {
+                playerTorch = player.GetComponentInChildren<HolyTorch>();
+            }
+
             if (dayNightCycle == null)
             {
-                dayNightCycle = FindFirstObjectByType<DayNightCycle>();
+                dayNightCycle = FindAnyObjectByType<DayNightCycle>();
             }
 
             if (dayNightCycle == null)
@@ -168,6 +175,7 @@ namespace Ashlight.Ghost
             {
                 GhostAIController instance = Instantiate(ghostPrefab, Vector3.zero, Quaternion.identity, transform);
                 instance.SetPlayer(player);
+                instance.SetTorch(playerTorch);
                 _pool.Add(instance);
                 instance.gameObject.SetActive(false);
             }

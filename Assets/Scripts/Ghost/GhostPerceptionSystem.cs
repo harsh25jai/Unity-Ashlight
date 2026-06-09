@@ -33,10 +33,17 @@ namespace Ashlight.Ghost
         {
             _player = playerTransform;
 
-            if (_player != null)
+            if (_player != null && _playerTorch == null)
             {
                 _playerTorch = _player.GetComponentInChildren<HolyTorch>();
             }
+        }
+
+        /// <summary>Assigns the player's holy torch at runtime.</summary>
+        /// <param name="torch">Player torch component.</param>
+        public void SetTorch(HolyTorch torch)
+        {
+            _playerTorch = torch;
         }
 
         /// <summary>

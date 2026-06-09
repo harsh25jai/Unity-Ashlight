@@ -1,3 +1,6 @@
+using System.Collections;
+using Ashlight.Player;
+using Ashlight.Systems;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Events;
@@ -14,7 +17,9 @@ namespace Ashlight.Ghost
         Stalk,
         Chase,
         Attack,
-        Retreat
+        Retreat,
+        Recharge,
+        Perish
     }
 
     /// <summary>
@@ -29,14 +34,28 @@ namespace Ashlight.Ghost
         private const float WanderDestinationRadius = 10f;
         private const float StalkFollowDistance = 6f;
         private const float RetreatDistanceFromPlayer = 15f;
-        private const float AttackCooldown = 1.5f;
+        private const float PlayerAttackCooldown = 1f;
         private const float DebugLogInterval = 2f;
+        private const float RechargeCompleteThreshold = 0.7f;
+        private const float PerishDelay = 1.5f;
+        private const float RechargePulseSpeed = 4f;
 
         [SerializeField] private GhostTypeDefinition ghostType;
         [SerializeField] private GhostPerceptionSystem perception;
+        [SerializeField] private GhostTorchInteraction ghostTorchInteraction;
         [SerializeField] private Transform player;
+        [SerializeField] private PlayerHealth playerHealth;
         [SerializeField] private Renderer ghostRenderer;
+        [SerializeField] private Transform ghostHealthBarFill;
+        [SerializeField] private ParticleSystem deathParticles;
         [SerializeField] [Range(0f, 1f)] private float retreatLightThreshold = 0.7f;
+
+        [Header("Ghost Health")]
+        [SerializeField] private float maxGhostHealth = 100f;
+        [SerializeField] private float currentGhostHealth = 100f;
+        [SerializeField] private float torchDamagePerSecond = 15f;
+        [SerializeField] private float rechargeRate = 10f;
+        [SerializeField] private float rechargeThreshold = 0.3f;
 
         [Header("Events")]
         [SerializeField] private UnityEvent _onAttackPlayer;
@@ -48,7 +67,10 @@ namespace Ashlight.Ghost
         private float _attackCooldownTimer;
         private float _debugLogTimer;
         private Vector3 _retreatDestination;
+        private Color _baseRendererColor = Color.white;
         private bool _isActive;
+        private bool _isPerishing;
+        private Coroutine _perishCoroutine;
 
         /// <summary>Gets the assigned ghost type definition.</summary>
         public GhostTypeDefinition GhostType => ghostType;
@@ -58,6 +80,12 @@ namespace Ashlight.Ghost
 
         /// <summary>Gets whether this ghost is active in the spawn pool.</summary>
         public bool IsSpawnActive => _isActive;
+
+        /// <summary>Gets current ghost health as a 0-1 percentage.</summary>
+        public float GhostHealthPercent => maxGhostHealth > 0f ? Mathf.Clamp01(currentGhostHealth / maxGhostHealth) : 0f;
+
+        /// <summary>Gets torch damage applied per second when fully in range.</summary>
+        public float TorchDamagePerSecond => torchDamagePerSecond;
 
         /// <summary>Invoked when the ghost performs an attack.</summary>
         public UnityEvent OnAttackPlayer => _onAttackPlayer;
@@ -90,7 +118,25 @@ namespace Ashlight.Ghost
                 return;
             }
 
+            if (ghostTorchInteraction == null)
+            {
+                ghostTorchInteraction = GetComponent<GhostTorchInteraction>();
+            }
+
+            if (ghostRenderer == null)
+            {
+                ghostRenderer = GetComponentInChildren<Renderer>();
+            }
+
+            if (ghostRenderer != null)
+            {
+                _baseRendererColor = ghostRenderer.material.color;
+            }
+
+            maxGhostHealth = Mathf.Max(1f, maxGhostHealth);
+            currentGhostHealth = Mathf.Clamp(currentGhostHealth, 0f, maxGhostHealth);
             ApplyGhostTypeVisuals();
+            UpdateHealthBar();
             _navMeshAgent.enabled = false;
         }
 
@@ -104,11 +150,31 @@ namespace Ashlight.Ghost
             {
                 perception.SetPlayer(playerTransform);
             }
+
+            if (playerHealth == null && playerTransform != null)
+            {
+                playerHealth = playerTransform.GetComponent<PlayerHealth>();
+            }
+        }
+
+        /// <summary>Assigns the player's holy torch to perception and torch interaction.</summary>
+        /// <param name="torch">Player torch component.</param>
+        public void SetTorch(HolyTorch torch)
+        {
+            if (perception != null)
+            {
+                perception.SetTorch(torch);
+            }
+
+            if (ghostTorchInteraction != null)
+            {
+                ghostTorchInteraction.SetTorch(torch);
+            }
         }
 
         private void Update()
         {
-            if (!_isActive || ghostType == null || perception == null || player == null)
+            if (!_isActive || ghostType == null || perception == null || player == null || _isPerishing)
             {
                 return;
             }
@@ -116,7 +182,10 @@ namespace Ashlight.Ghost
             _attackCooldownTimer = Mathf.Max(0f, _attackCooldownTimer - Time.deltaTime);
             UpdateDebugLogTimer();
 
-            if (_currentState != GhostState.Retreat && ShouldRetreat())
+            if (_currentState != GhostState.Retreat &&
+                _currentState != GhostState.Recharge &&
+                _currentState != GhostState.Perish &&
+                ShouldRetreat())
             {
                 ChangeState(GhostState.Retreat);
             }
@@ -141,6 +210,9 @@ namespace Ashlight.Ghost
                 case GhostState.Retreat:
                     UpdateRetreat();
                     break;
+                case GhostState.Recharge:
+                    UpdateRecharge();
+                    break;
             }
         }
 
@@ -156,7 +228,16 @@ namespace Ashlight.Ghost
             }
 
             _isActive = true;
+            _isPerishing = false;
             _debugLogTimer = DebugLogInterval;
+            currentGhostHealth = maxGhostHealth;
+            UpdateHealthBar();
+
+            if (ghostRenderer != null)
+            {
+                ghostRenderer.enabled = true;
+                ghostRenderer.material.color = _baseRendererColor;
+            }
 
             if (_navMeshAgent != null && !_navMeshAgent.enabled)
             {
@@ -172,6 +253,14 @@ namespace Ashlight.Ghost
         public void Deactivate()
         {
             _isActive = false;
+            _isPerishing = false;
+
+            if (_perishCoroutine != null)
+            {
+                StopCoroutine(_perishCoroutine);
+                _perishCoroutine = null;
+            }
+
             SetAgentStopped(true);
             ResetAgentPath();
             _currentState = GhostState.Idle;
@@ -181,31 +270,39 @@ namespace Ashlight.Ghost
                 _navMeshAgent.enabled = false;
             }
 
+            if (ghostRenderer != null)
+            {
+                ghostRenderer.enabled = true;
+                ghostRenderer.material.color = _baseRendererColor;
+            }
+
             gameObject.SetActive(false);
         }
 
-        private void ApplyGhostTypeVisuals()
+        /// <summary>Applies torch damage to this ghost.</summary>
+        /// <param name="damage">Damage amount.</param>
+        public void TakeTorchDamage(float damage)
         {
-            if (ghostRenderer == null)
+            if (!_isActive || _isPerishing || damage <= 0f)
             {
-                ghostRenderer = GetComponentInChildren<Renderer>();
+                return;
             }
 
-            if (ghostRenderer != null && ghostType.VisualMaterial != null)
+            currentGhostHealth = Mathf.Max(0f, currentGhostHealth - damage);
+            UpdateHealthBar();
+
+            if (currentGhostHealth <= 0f)
             {
-                ghostRenderer.material = ghostType.VisualMaterial;
+                Perish();
+                return;
             }
 
-            if (_navMeshAgent != null)
+            if (GhostHealthPercent < rechargeThreshold &&
+                _currentState != GhostState.Retreat &&
+                _currentState != GhostState.Recharge)
             {
-                _navMeshAgent.speed = ghostType.MoveSpeed;
+                ChangeState(GhostState.Retreat);
             }
-        }
-
-        private float GetPlayerTorchFuelPercent()
-        {
-            var torch = player.GetComponentInChildren<Systems.HolyTorch>();
-            return torch != null ? torch.FuelPercent : 0f;
         }
 
         /// <summary>
@@ -219,15 +316,79 @@ namespace Ashlight.Ghost
             return lightLevel > threshold;
         }
 
+        private void Perish()
+        {
+            if (_isPerishing)
+            {
+                return;
+            }
+
+            _perishCoroutine = StartCoroutine(PerishRoutine());
+        }
+
+        private IEnumerator PerishRoutine()
+        {
+            _isPerishing = true;
+            _currentState = GhostState.Perish;
+            SetAgentStopped(true);
+            ResetAgentPath();
+
+            if (deathParticles != null)
+            {
+                deathParticles.Play();
+            }
+
+            if (ghostRenderer != null)
+            {
+                ghostRenderer.enabled = false;
+            }
+
+            yield return new WaitForSeconds(PerishDelay);
+
+            currentGhostHealth = maxGhostHealth;
+            UpdateHealthBar();
+            _isPerishing = false;
+            _perishCoroutine = null;
+            Deactivate();
+        }
+
+        private void ApplyGhostTypeVisuals()
+        {
+            if (ghostRenderer != null && ghostType.VisualMaterial != null)
+            {
+                ghostRenderer.material = ghostType.VisualMaterial;
+                _baseRendererColor = ghostRenderer.material.color;
+            }
+
+            if (_navMeshAgent != null)
+            {
+                _navMeshAgent.speed = ghostType.MoveSpeed;
+            }
+        }
+
+        private float GetPlayerTorchFuelPercent()
+        {
+            HolyTorch torch = player.GetComponentInChildren<HolyTorch>();
+            return torch != null ? torch.FuelPercent : 0f;
+        }
+
         private bool ShouldRetreat()
         {
+            if (ghostTorchInteraction == null || !ghostTorchInteraction.IsInTorchRange)
+            {
+                return false;
+            }
+
             float lightLevel = perception.GetLightLevelAtPosition(transform.position);
             return ShouldRetreatFromLight(lightLevel, retreatLightThreshold);
         }
 
         private void ApplyPerceptionTransitions(PerceptionLevel perceptionLevel)
         {
-            if (_currentState == GhostState.Retreat || _currentState == GhostState.Attack)
+            if (_currentState == GhostState.Retreat ||
+                _currentState == GhostState.Recharge ||
+                _currentState == GhostState.Attack ||
+                _currentState == GhostState.Perish)
             {
                 return;
             }
@@ -255,6 +416,18 @@ namespace Ashlight.Ghost
 
             _debugLogTimer = DebugLogInterval;
             Debug.Log($"Ghost state: {_currentState}, Distance to player: {Vector3.Distance(transform.position, player.position)}");
+        }
+
+        private void UpdateHealthBar()
+        {
+            if (ghostHealthBarFill == null)
+            {
+                return;
+            }
+
+            Vector3 scale = ghostHealthBarFill.localScale;
+            scale.x = GhostHealthPercent;
+            ghostHealthBarFill.localScale = scale;
         }
 
         private void ChangeState(GhostState newState)
@@ -291,6 +464,9 @@ namespace Ashlight.Ghost
                 case GhostState.Retreat:
                     EnterRetreat();
                     break;
+                case GhostState.Recharge:
+                    EnterRecharge();
+                    break;
             }
         }
 
@@ -315,6 +491,9 @@ namespace Ashlight.Ghost
                     break;
                 case GhostState.Retreat:
                     ExitRetreat();
+                    break;
+                case GhostState.Recharge:
+                    ExitRecharge();
                     break;
             }
         }
@@ -454,7 +633,13 @@ namespace Ashlight.Ghost
 
             if (_attackCooldownTimer <= 0f)
             {
-                _attackCooldownTimer = AttackCooldown;
+                _attackCooldownTimer = PlayerAttackCooldown;
+
+                if (playerHealth != null)
+                {
+                    playerHealth.TakeDamage(ghostType.Damage);
+                }
+
                 _onAttackPlayer?.Invoke();
             }
         }
@@ -488,9 +673,28 @@ namespace Ashlight.Ghost
         private void UpdateRetreat()
         {
             float distanceFromPlayer = Vector3.Distance(transform.position, player.position);
-            if (distanceFromPlayer >= RetreatDistanceFromPlayer)
+            if (distanceFromPlayer < RetreatDistanceFromPlayer)
             {
-                ChangeState(GhostState.Idle);
+                return;
+            }
+
+            bool reachedDestination = _navMeshAgent == null ||
+                                      !_navMeshAgent.isOnNavMesh ||
+                                      (!_navMeshAgent.pathPending &&
+                                       _navMeshAgent.remainingDistance <= _navMeshAgent.stoppingDistance);
+
+            if (!reachedDestination)
+            {
+                return;
+            }
+
+            if (GhostHealthPercent < rechargeThreshold)
+            {
+                ChangeState(GhostState.Recharge);
+            }
+            else
+            {
+                ChangeState(GhostState.Wander);
             }
         }
 
@@ -500,6 +704,42 @@ namespace Ashlight.Ghost
             {
                 _navMeshAgent.speed = ghostType.MoveSpeed;
             }
+        }
+
+        private void EnterRecharge()
+        {
+            SetAgentStopped(true);
+        }
+
+        private void UpdateRecharge()
+        {
+            currentGhostHealth = Mathf.Min(maxGhostHealth, currentGhostHealth + rechargeRate * Time.deltaTime);
+            UpdateHealthBar();
+            ApplyRechargePulse();
+
+            if (GhostHealthPercent >= RechargeCompleteThreshold)
+            {
+                ChangeState(GhostState.Wander);
+            }
+        }
+
+        private void ExitRecharge()
+        {
+            if (ghostRenderer != null)
+            {
+                ghostRenderer.material.color = _baseRendererColor;
+            }
+        }
+
+        private void ApplyRechargePulse()
+        {
+            if (ghostRenderer == null)
+            {
+                return;
+            }
+
+            float pulse = 0.7f + 0.3f * Mathf.Sin(Time.time * RechargePulseSpeed);
+            ghostRenderer.material.color = _baseRendererColor * pulse;
         }
 
         private bool HasActiveWanderDestination()

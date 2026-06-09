@@ -1,117 +1,114 @@
+using Ashlight.Systems;
 using UnityEngine;
 using UnityEngine.Events;
 
 namespace Ashlight.Player
 {
     /// <summary>
-    /// Tracks player health, damage invincibility, and death signaling for GameManager.
+    /// Tracks player health and synchronizes torch output as a shared soul-light value.
     /// </summary>
     [DisallowMultipleComponent]
     public class PlayerHealth : MonoBehaviour
     {
-        [SerializeField] private PlayerStats _playerStats;
-        [SerializeField] private float _invincibilityDuration = 1f;
+        [SerializeField] private float maxHealth = 100f;
+        [SerializeField] private float currentHealth = 100f;
+        [SerializeField] private HolyTorch holyTorch;
 
         [Header("Events")]
         [SerializeField] private UnityEvent _onDeath;
         [SerializeField] private UnityEvent<float> _onDamageTaken;
         [SerializeField] private UnityEvent<float> _onHealed;
 
-        private float _currentHealth;
-        private float _invincibleUntil;
         private bool _isDead;
 
         /// <summary>Gets the current health value.</summary>
-        public float CurrentHealth => _currentHealth;
+        public float CurrentHealth => currentHealth;
+
+        /// <summary>Gets the maximum health value.</summary>
+        public float MaxHealth => maxHealth;
+
+        /// <summary>Gets current health as a 0-1 percentage.</summary>
+        public float HealthPercent => maxHealth > 0f ? Mathf.Clamp01(currentHealth / maxHealth) : 0f;
 
         /// <summary>Gets whether the player is currently dead.</summary>
         public bool IsDead => _isDead;
 
-        /// <summary>Gets whether damage is currently blocked by invincibility frames.</summary>
-        public bool IsInvincible => Time.time < _invincibleUntil;
-
-        /// <summary>Gets the maximum health from stats, or zero when stats are missing.</summary>
-        public float MaxHealth => _playerStats != null ? _playerStats.ModifiedMaxHealth : 0f;
-
         /// <summary>Invoked when health reaches zero. GameManager should handle game-over flow.</summary>
         public UnityEvent OnDeath => _onDeath;
 
-        /// <summary>Invoked with damage amount after health is reduced.</summary>
+        /// <summary>Invoked with current health after damage is applied.</summary>
         public UnityEvent<float> OnDamageTaken => _onDamageTaken;
 
-        /// <summary>Invoked with heal amount after health is restored.</summary>
+        /// <summary>Invoked with current health after healing is applied.</summary>
         public UnityEvent<float> OnHealed => _onHealed;
 
         private void Awake()
         {
-            if (_playerStats == null)
+            if (holyTorch == null)
             {
-                Debug.LogError($"{nameof(PlayerHealth)} requires a {nameof(PlayerStats)} asset.", this);
-                enabled = false;
+                holyTorch = GetComponentInChildren<HolyTorch>();
             }
-        }
 
-        private void Start()
-        {
-            ResetToFullHealth();
-        }
-
-        /// <summary>Resets current health to the modified maximum from stats.</summary>
-        public void ResetToFullHealth()
-        {
-            if (_playerStats == null)
+            if (holyTorch == null)
             {
+                Debug.LogError($"{nameof(PlayerHealth)} requires a {nameof(HolyTorch)} reference.", this);
+                enabled = false;
                 return;
             }
 
-            _isDead = false;
-            _invincibleUntil = 0f;
-            _currentHealth = _playerStats.ModifiedMaxHealth;
+            maxHealth = Mathf.Max(1f, maxHealth);
+            currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
+            SyncTorchHealth();
         }
 
-        /// <summary>Applies damage unless invincible or already dead.</summary>
+        /// <summary>Applies damage and weakens the holy torch proportionally.</summary>
         /// <param name="amount">Damage amount.</param>
         public void TakeDamage(float amount)
         {
-            if (!isActiveAndEnabled || _isDead || amount <= 0f || IsInvincible)
+            if (!isActiveAndEnabled || _isDead || amount <= 0f)
             {
                 return;
             }
 
-            _currentHealth = Mathf.Max(0f, _currentHealth - amount);
-            _invincibleUntil = Time.time + _invincibilityDuration;
-            _onDamageTaken?.Invoke(amount);
+            currentHealth = Mathf.Max(0f, currentHealth - amount);
+            SyncTorchHealth();
+            _onDamageTaken?.Invoke(currentHealth);
 
-            if (_currentHealth <= 0f)
+            if (currentHealth <= 0f)
             {
                 _isDead = true;
                 _onDeath?.Invoke();
             }
         }
 
-        /// <summary>Restores health up to the modified maximum.</summary>
+        /// <summary>Restores health and brightens the holy torch proportionally.</summary>
         /// <param name="amount">Heal amount.</param>
         public void Heal(float amount)
         {
-            if (!isActiveAndEnabled || _isDead || amount <= 0f || _playerStats == null)
+            if (!isActiveAndEnabled || _isDead || amount <= 0f)
             {
                 return;
             }
 
-            float previousHealth = _currentHealth;
-            _currentHealth = Mathf.Min(_playerStats.ModifiedMaxHealth, _currentHealth + amount);
-            float healedAmount = _currentHealth - previousHealth;
-
-            if (healedAmount > 0f)
-            {
-                _onHealed?.Invoke(healedAmount);
-            }
+            currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
+            SyncTorchHealth();
+            _onHealed?.Invoke(currentHealth);
         }
 
         /// <summary>Resets health and alive state, typically after GameManager respawn.</summary>
         public void Revive()
         {
-            ResetToFullHealth();
+            _isDead = false;
+            currentHealth = maxHealth;
+            SyncTorchHealth();
+        }
+
+        private void SyncTorchHealth()
+        {
+            if (holyTorch != null)
+            {
+                holyTorch.SetHealthModifier(HealthPercent);
+            }
         }
     }
 }

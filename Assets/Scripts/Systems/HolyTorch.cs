@@ -31,6 +31,7 @@ namespace Ashlight.Systems
         [SerializeField] private float maxFuel = 100f;
         [SerializeField] private Light pointLight;
         [SerializeField] private Light spotLight;
+        [SerializeField] private float healthModifier = 1f;
 
         [Header("Events")]
         [SerializeField] private UnityEvent _onTorchLit;
@@ -47,6 +48,23 @@ namespace Ashlight.Systems
 
         /// <summary>Gets current fuel as a 0-1 percentage.</summary>
         public float FuelPercent => maxFuel > 0f ? Mathf.Clamp01(_currentFuel / maxFuel) : 0f;
+
+        /// <summary>Gets the player health modifier applied to torch output.</summary>
+        public float HealthModifier => healthModifier;
+
+        /// <summary>Gets the effective point-light range after fuel and health modifiers.</summary>
+        public float CurrentLightRange
+        {
+            get
+            {
+                if (!HasValidLights() || _currentFuel <= 0f)
+                {
+                    return 0f;
+                }
+
+                return PointMaxRange * FuelPercent * healthModifier;
+            }
+        }
 
         /// <summary>Gets whether the torch is in accelerated combat drain mode.</summary>
         public bool IsCombatMode => _combatMode;
@@ -131,6 +149,14 @@ namespace Ashlight.Systems
         {
             StopDrainRoutine();
             StopFlickerRoutine();
+        }
+
+        /// <summary>Sets player health influence on torch brightness and range.</summary>
+        /// <param name="modifier">Health percentage from 0 to 1.</param>
+        public void SetHealthModifier(float modifier)
+        {
+            healthModifier = Mathf.Clamp01(modifier);
+            ApplyLightState();
         }
 
         /// <summary>Enables or disables accelerated combat fuel drain.</summary>
@@ -265,16 +291,20 @@ namespace Ashlight.Systems
 
             float fuelPercent = FuelPercent;
 
+            float pointEffectiveIntensity = PointMaxIntensity * fuelPercent * healthModifier;
+            float pointEffectiveRange = PointMaxRange * fuelPercent * healthModifier;
+
             pointLight.enabled = true;
-            pointLight.range = Mathf.Lerp(PointMinRange, PointMaxRange, fuelPercent);
-            float pointBaseIntensity = Mathf.Lerp(PointMinIntensity, PointMaxIntensity, fuelPercent);
-            pointLight.intensity = Mathf.Max(0f, pointBaseIntensity + _flickerIntensityOffset);
+            pointLight.range = Mathf.Max(PointMinRange, pointEffectiveRange);
+            pointLight.intensity = Mathf.Max(0f, pointEffectiveIntensity + _flickerIntensityOffset);
+
+            float spotEffectiveIntensity = SpotMaxIntensity * fuelPercent * healthModifier;
+            float spotEffectiveRange = SpotMaxRange * fuelPercent * healthModifier;
 
             spotLight.enabled = true;
-            spotLight.range = Mathf.Lerp(SpotMinRange, SpotMaxRange, fuelPercent);
+            spotLight.range = Mathf.Max(SpotMinRange, spotEffectiveRange);
             spotLight.spotAngle = SpotAngle;
-            float spotBaseIntensity = Mathf.Lerp(SpotMinIntensity, SpotMaxIntensity, fuelPercent);
-            spotLight.intensity = Mathf.Max(0f, spotBaseIntensity + _flickerIntensityOffset);
+            spotLight.intensity = Mathf.Max(0f, spotEffectiveIntensity + _flickerIntensityOffset);
         }
 
         private void UpdateFlickerRoutine()

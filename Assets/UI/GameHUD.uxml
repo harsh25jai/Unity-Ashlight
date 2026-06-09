@@ -1,0 +1,27 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="hud-root" style="flex-grow: 1; position: relative;">
+        <ui:VisualElement name="holy-water-panel"
+                         style="position: absolute; bottom: 24px; left: 25%; right: 25%; height: 32px; padding: 4px 8px; background-color: rgba(0, 0, 0, 0.6); border-radius: 4px; flex-direction: row; align-items: center;">
+            <ui:ProgressBar name="holy-water-bar"
+                            title="Holy Water"
+                            style="flex-grow: 1; height: 20px;" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="torch-panel"
+                         style="position: absolute; bottom: 24px; left: 24px; min-width: 120px; height: 32px; padding: 4px 12px; background-color: rgba(0, 0, 0, 0.6); border-radius: 4px; justify-content: center;">
+            <ui:Label name="torch-indicator"
+                      text="&#128293; 100%"
+                      style="color: rgb(255, 220, 120); font-size: 16px; -unity-font-style: bold; -unity-text-align: middle-left;" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="night-panel"
+                         style="position: absolute; top: 24px; right: 24px; min-width: 160px; padding: 8px 12px; background-color: rgba(0, 0, 0, 0.6); border-radius: 4px; flex-direction: column; align-items: flex-end;">
+            <ui:Label name="night-phase-label"
+                      text="Day"
+                      style="color: rgb(220, 220, 230); font-size: 16px; -unity-font-style: bold; -unity-text-align: middle-right;" />
+            <ui:Label name="night-count-label"
+                      text="Night 0"
+                      style="color: rgb(180, 180, 200); font-size: 14px; margin-top: 4px; -unity-text-align: middle-right;" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

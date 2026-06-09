@@ -37,6 +37,7 @@ namespace Ashlight.Systems
         [SerializeField] private UnityEvent _onTorchLit;
         [SerializeField] private UnityEvent _onTorchLow;
         [SerializeField] private UnityEvent _onTorchExtinguished;
+        [SerializeField] private UnityEvent _onFuelChanged;
 
         private float _currentFuel;
         private bool _combatMode;
@@ -80,6 +81,9 @@ namespace Ashlight.Systems
 
         /// <summary>Invoked when fuel reaches zero.</summary>
         public UnityEvent OnTorchExtinguished => _onTorchExtinguished;
+
+        /// <summary>Invoked when torch fuel amount changes.</summary>
+        public UnityEvent OnFuelChanged => _onFuelChanged;
 
         private void Awake()
         {
@@ -191,6 +195,7 @@ namespace Ashlight.Systems
 
             ApplyLightState();
             UpdateFlickerRoutine();
+            NotifyFuelChanged();
         }
 
         private bool HasValidLights()
@@ -254,6 +259,8 @@ namespace Ashlight.Systems
                 ApplyLightState();
                 UpdateFlickerRoutine();
             }
+
+            NotifyFuelChanged();
         }
 
         private void ExtinguishTorch()
@@ -270,6 +277,12 @@ namespace Ashlight.Systems
             _flickerIntensityOffset = 0f;
             ApplyLightState();
             _onTorchExtinguished?.Invoke();
+            NotifyFuelChanged();
+        }
+
+        private void NotifyFuelChanged()
+        {
+            _onFuelChanged?.Invoke();
         }
 
         private void ApplyLightState()

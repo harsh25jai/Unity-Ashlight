@@ -40,6 +40,7 @@ namespace Ashlight.Player
         private float _currentStamina;
         private bool _staminaWasDepleted;
         private float _currentSpeed;
+        private float _staminaDrainMultiplier = 1f;
 
         /// <summary>Gets whether the player is currently providing movement input.</summary>
         public bool IsMoving => _moveInput.sqrMagnitude > MoveInputThreshold;
@@ -49,6 +50,16 @@ namespace Ashlight.Player
 
         /// <summary>Gets the current stamina value.</summary>
         public float CurrentStamina => _currentStamina;
+
+        /// <summary>Gets the fear-driven stamina drain multiplier.</summary>
+        public float StaminaDrainMultiplier => _staminaDrainMultiplier;
+
+        /// <summary>Sets the stamina drain multiplier applied while running.</summary>
+        /// <param name="multiplier">Multiplier from 1 to 2.</param>
+        public void SetStaminaDrainMultiplier(float multiplier)
+        {
+            _staminaDrainMultiplier = Mathf.Clamp(multiplier, 1f, 2f);
+        }
 
         /// <summary>Adds stamina up to the player's maximum.</summary>
         /// <param name="amount">Stamina amount to restore.</param>
@@ -184,7 +195,9 @@ namespace Ashlight.Player
 
             if (isRunning)
             {
-                _currentStamina = Mathf.Max(0f, _currentStamina - StaminaDrainPerSecond * Time.deltaTime);
+                _currentStamina = Mathf.Max(
+                    0f,
+                    _currentStamina - StaminaDrainPerSecond * _staminaDrainMultiplier * Time.deltaTime);
             }
             else if (!hasMovement)
             {

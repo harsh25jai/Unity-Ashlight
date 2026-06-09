@@ -1,5 +1,4 @@
-using System.Collections;
-using Ashlight.Player;
+using Ashlight.Environment;
 using Ashlight.Systems;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -7,29 +6,29 @@ using UnityEngine.UIElements;
 namespace Ashlight.UI
 {
     /// <summary>
-    /// Screen-space HUD for Holy Water, player health, and damage feedback.
+    /// Event-driven UI Toolkit HUD for Holy Water, torch fuel, and night cycle status.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(UIDocument))]
     public class HUDManager : MonoBehaviour
     {
-        private const float HolyWaterUpdateInterval = 0.1f;
-        private const float DamageVignetteDuration = 0.5f;
-        private const float DamageVignettePeakAlpha = 0.45f;
+        private const float LowHolyWaterThreshold = 0.2f;
+        private const string TorchFlameGlyph = "\uD83D\uDD25";
 
-        private static readonly Color HealthBarColor = new Color(0.7529412f, 0.1882353f, 0.1882353f, 1f);
-        private static readonly Color HolyWaterBarColor = new Color(0.35f, 0.65f, 0.95f, 1f);
+        private static readonly Color HolyWaterGold = new Color(0.92f, 0.75f, 0.2f, 1f);
+        private static readonly Color HolyWaterWarning = new Color(0.85f, 0.2f, 0.2f, 1f);
+        private static readonly Color PanelBackground = new Color(0f, 0f, 0f, 0.6f);
 
+        [SerializeField] private VisualTreeAsset hudLayout;
         [SerializeField] private HolyWaterInventory holyWaterInventory;
-        [SerializeField] private PlayerHealth playerHealth;
+        [SerializeField] private HolyTorch holyTorch;
+        [SerializeField] private DayNightCycle dayNightCycle;
 
         private UIDocument _uiDocument;
         private ProgressBar _holyWaterBar;
-        private ProgressBar _healthBar;
-        private Label _healthLabel;
-        private VisualElement _damageVignette;
-        private Coroutine _holyWaterRoutine;
-        private Coroutine _damageVignetteRoutine;
+        private Label _torchIndicator;
+        private Label _nightPhaseLabel;
+        private Label _nightCountLabel;
 
         /// <summary>
         /// Formats current and maximum health for HUD display.
@@ -44,6 +43,45 @@ namespace Ashlight.UI
             return $"{current} / {max}";
         }
 
+        /// <summary>Formats a day/night phase for HUD display.</summary>
+        /// <param name="phase">Current phase.</param>
+        /// <returns>Human-readable phase label.</returns>
+        public static string FormatNightPhase(DayNightPhase phase)
+        {
+            switch (phase)
+            {
+                case DayNightPhase.Day:
+                    return "Day";
+                case DayNightPhase.Dusk:
+                    return "Dusk";
+                case DayNightPhase.Night_Early:
+                    return "Night — Early";
+                case DayNightPhase.Night_Deep:
+                    return "Night — Deep";
+                case DayNightPhase.Dawn:
+                    return "Dawn";
+                default:
+                    return phase.ToString();
+            }
+        }
+
+        /// <summary>Formats the night counter for HUD display.</summary>
+        /// <param name="nightCount">Completed night cycles.</param>
+        /// <returns>Display string such as "Night 3".</returns>
+        public static string FormatNightCount(int nightCount)
+        {
+            return $"Night {Mathf.Max(0, nightCount)}";
+        }
+
+        /// <summary>Formats torch fuel for HUD display.</summary>
+        /// <param name="fuelPercent">Fuel from 0 to 1.</param>
+        /// <returns>Display string with flame glyph and percentage.</returns>
+        public static string FormatTorchFuel(float fuelPercent)
+        {
+            int percent = Mathf.RoundToInt(Mathf.Clamp01(fuelPercent) * 100f);
+            return $"{TorchFlameGlyph} {percent}%";
+        }
+
         private void Awake()
         {
             _uiDocument = GetComponent<UIDocument>();
@@ -55,184 +93,116 @@ namespace Ashlight.UI
                 return;
             }
 
+            if (hudLayout != null)
+            {
+                _uiDocument.visualTreeAsset = hudLayout;
+            }
+
             if (holyWaterInventory == null)
             {
                 Debug.LogWarning($"{nameof(HUDManager)} has no {nameof(HolyWaterInventory)} assigned.", this);
             }
 
-            if (playerHealth == null)
+            if (holyTorch == null)
             {
                 GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
                 if (playerObject != null)
                 {
-                    playerHealth = playerObject.GetComponent<PlayerHealth>();
+                    holyTorch = playerObject.GetComponentInChildren<HolyTorch>();
                 }
             }
 
-            if (playerHealth == null)
+            if (dayNightCycle == null)
             {
-                Debug.LogWarning($"{nameof(HUDManager)} has no {nameof(PlayerHealth)} assigned.", this);
+                dayNightCycle = FindAnyObjectByType<DayNightCycle>();
             }
         }
 
         private void OnEnable()
         {
-            BuildInterface();
-            BindPlayerHealthEvents();
-            RefreshHealthDisplay(playerHealth != null ? playerHealth.CurrentHealth : 0f);
-            RefreshHolyWaterDisplay();
-
-            if (_holyWaterRoutine == null)
-            {
-                _holyWaterRoutine = StartCoroutine(UpdateHolyWaterRoutine());
-            }
+            CacheVisualElements();
+            BindEvents();
+            RefreshHolyWaterBar();
+            RefreshTorchIndicator();
+            RefreshNightDisplay(dayNightCycle != null ? dayNightCycle.CurrentPhase : DayNightPhase.Day);
         }
 
         private void OnDisable()
         {
-            UnbindPlayerHealthEvents();
-
-            if (_holyWaterRoutine != null)
-            {
-                StopCoroutine(_holyWaterRoutine);
-                _holyWaterRoutine = null;
-            }
-
-            if (_damageVignetteRoutine != null)
-            {
-                StopCoroutine(_damageVignetteRoutine);
-                _damageVignetteRoutine = null;
-            }
+            UnbindEvents();
         }
 
-        /// <summary>Plays a brief red vignette flash when the player takes damage.</summary>
-        public void PlayDamageVignette()
-        {
-            if (_damageVignette == null)
-            {
-                return;
-            }
-
-            if (_damageVignetteRoutine != null)
-            {
-                StopCoroutine(_damageVignetteRoutine);
-            }
-
-            _damageVignetteRoutine = StartCoroutine(DamageVignetteRoutine());
-        }
-
-        private void BuildInterface()
+        private void CacheVisualElements()
         {
             VisualElement root = _uiDocument.rootVisualElement;
-            root.Clear();
-            root.style.flexGrow = 1f;
 
-            VisualElement hudContainer = new VisualElement { name = "hud-container" };
-            hudContainer.style.position = Position.Absolute;
-            hudContainer.style.top = 24;
-            hudContainer.style.left = 24;
-            hudContainer.style.width = 300;
-            hudContainer.style.flexDirection = FlexDirection.Column;
+            _holyWaterBar = root.Q<ProgressBar>("holy-water-bar");
+            _torchIndicator = root.Q<Label>("torch-indicator");
+            _nightPhaseLabel = root.Q<Label>("night-phase-label");
+            _nightCountLabel = root.Q<Label>("night-count-label");
 
-            _holyWaterBar = new ProgressBar { name = "holy-water-bar", title = "Holy Water" };
-            _holyWaterBar.style.height = 22;
-            _holyWaterBar.style.marginBottom = 10;
-            _holyWaterBar.highValue = 100f;
-            hudContainer.Add(_holyWaterBar);
+            if (_holyWaterBar == null)
+            {
+                Debug.LogError($"{nameof(HUDManager)} could not find holy-water-bar in the HUD layout.", this);
+            }
 
-            _healthBar = new ProgressBar { name = "health-bar", title = "Health" };
-            _healthBar.style.height = 22;
-            _healthBar.style.marginBottom = 6;
-            _healthBar.highValue = 100f;
-            hudContainer.Add(_healthBar);
-
-            _healthLabel = new Label("100 / 100") { name = "health-label" };
-            _healthLabel.style.color = HealthBarColor;
-            _healthLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            _healthLabel.style.fontSize = 14;
-            hudContainer.Add(_healthLabel);
-
-            _damageVignette = new VisualElement { name = "damage-vignette" };
-            _damageVignette.style.position = Position.Absolute;
-            _damageVignette.style.left = 0;
-            _damageVignette.style.right = 0;
-            _damageVignette.style.top = 0;
-            _damageVignette.style.bottom = 0;
-            _damageVignette.style.backgroundColor = new Color(HealthBarColor.r, HealthBarColor.g, HealthBarColor.b, 0f);
-            _damageVignette.pickingMode = PickingMode.Ignore;
-
-            root.Add(hudContainer);
-            root.Add(_damageVignette);
-
-            _holyWaterBar.schedule.Execute(ApplyHolyWaterBarColor).ExecuteLater(1);
-            _healthBar.schedule.Execute(ApplyHealthBarColor).ExecuteLater(1);
+            _holyWaterBar?.schedule.Execute(ApplyHolyWaterBarColor).ExecuteLater(1);
         }
 
-        private void ApplyHolyWaterBarColor()
+        private void BindEvents()
         {
-            VisualElement progress = _holyWaterBar?.Q(className: "unity-progress-bar__progress");
-            if (progress != null)
+            if (holyWaterInventory != null)
             {
-                progress.style.backgroundColor = HolyWaterBarColor;
+                holyWaterInventory.OnAmountChanged.AddListener(RefreshHolyWaterBar);
+                holyWaterInventory.OnReplenished.AddListener(RefreshHolyWaterBar);
+                holyWaterInventory.OnCriticalLevel.AddListener(RefreshHolyWaterBar);
+                holyWaterInventory.OnEmpty.AddListener(RefreshHolyWaterBar);
+            }
+
+            if (holyTorch != null)
+            {
+                holyTorch.OnFuelChanged.AddListener(RefreshTorchIndicator);
+                holyTorch.OnTorchLit.AddListener(RefreshTorchIndicator);
+                holyTorch.OnTorchLow.AddListener(RefreshTorchIndicator);
+                holyTorch.OnTorchExtinguished.AddListener(RefreshTorchIndicator);
+            }
+
+            if (dayNightCycle != null)
+            {
+                dayNightCycle.OnPhaseChanged.AddListener(OnDayNightPhaseChanged);
             }
         }
 
-        private void ApplyHealthBarColor()
+        private void UnbindEvents()
         {
-            VisualElement progress = _healthBar?.Q(className: "unity-progress-bar__progress");
-            if (progress != null)
+            if (holyWaterInventory != null)
             {
-                progress.style.backgroundColor = HealthBarColor;
+                holyWaterInventory.OnAmountChanged.RemoveListener(RefreshHolyWaterBar);
+                holyWaterInventory.OnReplenished.RemoveListener(RefreshHolyWaterBar);
+                holyWaterInventory.OnCriticalLevel.RemoveListener(RefreshHolyWaterBar);
+                holyWaterInventory.OnEmpty.RemoveListener(RefreshHolyWaterBar);
+            }
+
+            if (holyTorch != null)
+            {
+                holyTorch.OnFuelChanged.RemoveListener(RefreshTorchIndicator);
+                holyTorch.OnTorchLit.RemoveListener(RefreshTorchIndicator);
+                holyTorch.OnTorchLow.RemoveListener(RefreshTorchIndicator);
+                holyTorch.OnTorchExtinguished.RemoveListener(RefreshTorchIndicator);
+            }
+
+            if (dayNightCycle != null)
+            {
+                dayNightCycle.OnPhaseChanged.RemoveListener(OnDayNightPhaseChanged);
             }
         }
 
-        private void BindPlayerHealthEvents()
+        private void OnDayNightPhaseChanged(DayNightPhase phase)
         {
-            if (playerHealth == null)
-            {
-                return;
-            }
-
-            playerHealth.OnDamageTaken.AddListener(OnPlayerDamageTaken);
-            playerHealth.OnHealed.AddListener(OnPlayerHealed);
+            RefreshNightDisplay(phase);
         }
 
-        private void UnbindPlayerHealthEvents()
-        {
-            if (playerHealth == null)
-            {
-                return;
-            }
-
-            playerHealth.OnDamageTaken.RemoveListener(OnPlayerDamageTaken);
-            playerHealth.OnHealed.RemoveListener(OnPlayerHealed);
-        }
-
-        private void OnPlayerDamageTaken(float currentHealth)
-        {
-            RefreshHealthDisplay(currentHealth);
-            PlayDamageVignette();
-        }
-
-        private void OnPlayerHealed(float currentHealth)
-        {
-            RefreshHealthDisplay(currentHealth);
-        }
-
-        private void RefreshHealthDisplay(float currentHealth)
-        {
-            if (_healthBar == null || _healthLabel == null)
-            {
-                return;
-            }
-
-            float maxHealth = playerHealth != null ? playerHealth.MaxHealth : 100f;
-            _healthBar.value = currentHealth;
-            _healthBar.highValue = maxHealth;
-            _healthLabel.text = FormatHealthDisplay(currentHealth, maxHealth);
-        }
-
-        private void RefreshHolyWaterDisplay()
+        private void RefreshHolyWaterBar()
         {
             if (_holyWaterBar == null || holyWaterInventory == null)
             {
@@ -241,49 +211,53 @@ namespace Ashlight.UI
 
             _holyWaterBar.value = holyWaterInventory.Current;
             _holyWaterBar.highValue = holyWaterInventory.MaxCapacity;
+            ApplyHolyWaterBarColor();
         }
 
-        private IEnumerator UpdateHolyWaterRoutine()
+        private void RefreshTorchIndicator()
         {
-            WaitForSeconds wait = new WaitForSeconds(HolyWaterUpdateInterval);
-
-            while (enabled)
+            if (_torchIndicator == null || holyTorch == null)
             {
-                RefreshHolyWaterDisplay();
-                yield return wait;
+                return;
+            }
+
+            _torchIndicator.text = FormatTorchFuel(holyTorch.FuelPercent);
+        }
+
+        private void RefreshNightDisplay(DayNightPhase phase)
+        {
+            if (_nightPhaseLabel != null)
+            {
+                _nightPhaseLabel.text = FormatNightPhase(phase);
+            }
+
+            if (_nightCountLabel != null && dayNightCycle != null)
+            {
+                _nightCountLabel.text = FormatNightCount(dayNightCycle.NightCycleCount);
             }
         }
 
-        private IEnumerator DamageVignetteRoutine()
+        private void ApplyHolyWaterBarColor()
         {
-            float elapsed = 0f;
-
-            while (elapsed < DamageVignetteDuration)
+            if (_holyWaterBar == null || holyWaterInventory == null)
             {
-                elapsed += Time.deltaTime;
-                float normalizedTime = elapsed / DamageVignetteDuration;
-                float alpha;
-
-                if (normalizedTime < 0.25f)
-                {
-                    alpha = Mathf.Lerp(0f, DamageVignettePeakAlpha, normalizedTime / 0.25f);
-                }
-                else
-                {
-                    alpha = Mathf.Lerp(DamageVignettePeakAlpha, 0f, (normalizedTime - 0.25f) / 0.75f);
-                }
-
-                _damageVignette.style.backgroundColor = new Color(
-                    HealthBarColor.r,
-                    HealthBarColor.g,
-                    HealthBarColor.b,
-                    alpha);
-
-                yield return null;
+                return;
             }
 
-            _damageVignette.style.backgroundColor = new Color(HealthBarColor.r, HealthBarColor.g, HealthBarColor.b, 0f);
-            _damageVignetteRoutine = null;
+            bool isLow = holyWaterInventory.FillPercent <= LowHolyWaterThreshold;
+            Color fillColor = isLow ? HolyWaterWarning : HolyWaterGold;
+
+            VisualElement progress = _holyWaterBar.Q(className: "unity-progress-bar__progress");
+            if (progress != null)
+            {
+                progress.style.backgroundColor = fillColor;
+            }
+
+            VisualElement background = _holyWaterBar.Q(className: "unity-progress-bar__background");
+            if (background != null)
+            {
+                background.style.backgroundColor = PanelBackground;
+            }
         }
     }
 }

@@ -117,6 +117,14 @@ namespace Ashlight.Environment
             _shakeCoroutine = StartCoroutine(ShakeRoutine(intensity, duration));
         }
 
+        /// <summary>Applies fear-driven camera shake using the current fear level.</summary>
+        /// <param name="intensity">Shake strength from 0 to 1.</param>
+        /// <param name="duration">Shake duration in seconds.</param>
+        public void CameraShake(float intensity, float duration = 0.35f)
+        {
+            PublicCameraShake(intensity, duration);
+        }
+
         /// <summary>Assigns the player or target transform for Cinemachine follow.</summary>
         /// <param name="target">World transform to track.</param>
         public void SetFollowTarget(Transform target)

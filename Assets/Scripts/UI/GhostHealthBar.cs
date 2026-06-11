@@ -6,69 +6,19 @@ using UnityEngine.UI;
 namespace Ashlight.UI
 {
     /// <summary>
-    /// World-space health bar that billboards above a ghost and reflects combat state.
+    /// World-space ghost health bar driven by a UI Slider with camera billboarding.
     /// </summary>
     [DisallowMultipleComponent]
     public class GhostHealthBar : MonoBehaviour
     {
         private const float UpdateInterval = 0.1f;
-        private const float HeadOffsetY = 2.5f;
-        private const float WorldCanvasScale = 0.01f;
-        private const float CanvasWidth = 200f;
-        private const float CanvasHeight = 24f;
 
-        private static readonly Color GreenHealth = new Color(0.2f, 0.85f, 0.3f, 1f);
-        private static readonly Color YellowHealth = new Color(0.95f, 0.85f, 0.2f, 1f);
-        private static readonly Color RedHealth = new Color(0.9f, 0.2f, 0.2f, 1f);
-
-        [SerializeField] private GhostAIController ghostAI;
-        [SerializeField] private Camera targetCamera;
-        [SerializeField] private Canvas healthCanvas;
         [SerializeField] private Slider healthSlider;
         [SerializeField] private Image fillImage;
+        [SerializeField] private GhostAIController ghostAI;
+        [SerializeField] private Canvas healthBarCanvas;
 
         private Coroutine _updateRoutine;
-        private Transform _canvasTransform;
-
-        /// <summary>
-        /// Determines whether the health bar should be visible for a ghost AI state.
-        /// </summary>
-        /// <param name="state">Current ghost state.</param>
-        /// <returns>True when the bar should be shown.</returns>
-        public static bool ShouldShowForState(GhostState state)
-        {
-            switch (state)
-            {
-                case GhostState.Stalk:
-                case GhostState.Chase:
-                case GhostState.Attack:
-                case GhostState.Retreat:
-                case GhostState.Recharge:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        /// <summary>
-        /// Resolves fill color from a normalized health percentage.
-        /// </summary>
-        /// <param name="healthPercent">Health from 0 to 1.</param>
-        /// <returns>Green, yellow, or red based on thresholds.</returns>
-        public static Color GetColorForHealthPercent(float healthPercent)
-        {
-            if (healthPercent > 0.6f)
-            {
-                return GreenHealth;
-            }
-
-            if (healthPercent >= 0.3f)
-            {
-                return YellowHealth;
-            }
-
-            return RedHealth;
-        }
 
         private void Awake()
         {
@@ -84,37 +34,52 @@ namespace Ashlight.UI
                 return;
             }
 
-            if (targetCamera == null)
+            if (healthSlider == null)
             {
-                targetCamera = Camera.main;
-            }
-
-            if (healthSlider == null || healthCanvas == null)
-            {
-                BuildHealthBarUI();
-            }
-
-            if (healthSlider == null || healthCanvas == null)
-            {
-                Debug.LogError($"{nameof(GhostHealthBar)} failed to create UI references.", this);
+                Debug.LogError($"{nameof(GhostHealthBar)} requires a {nameof(Slider)}.", this);
                 enabled = false;
                 return;
             }
 
-            healthSlider.minValue = 0f;
-            healthSlider.maxValue = 1f;
-            healthSlider.interactable = false;
-            _canvasTransform = healthCanvas.transform;
-        }
-
-        private void OnEnable()
-        {
-            if (ghostAI == null || healthSlider == null)
+            if (fillImage == null)
             {
+                Debug.LogError($"{nameof(GhostHealthBar)} requires a {nameof(Image)} fill image.", this);
+                enabled = false;
                 return;
             }
 
-            _updateRoutine = StartCoroutine(UpdateHealthBarRoutine());
+            if (healthBarCanvas == null)
+            {
+                Debug.LogError($"{nameof(GhostHealthBar)} requires a {nameof(Canvas)}.", this);
+                enabled = false;
+                return;
+            }
+
+            Debug.Log("GhostHealthBar initialized. Canvas: " +
+                      (healthBarCanvas != null ? "found" : "NULL") +
+                      ", HealthSlider: " + (healthSlider != null ? "found" : "NULL") +
+                      ", FillImage: " + (fillImage != null ? "found" : "NULL") +
+                      ", GhostAI: " + (ghostAI != null ? "found" : "NULL"));
+
+            Debug.Log($"HealthBarCanvas active: {healthBarCanvas.gameObject.activeSelf}, " +
+                      $"Canvas renderMode: {healthBarCanvas.renderMode}, " +
+                      $"Slider: {(healthSlider != null ? "found" : "NULL")}, " +
+                      $"Fill: {(fillImage != null ? "found" : "NULL")}");
+
+            healthSlider.minValue = 0f;
+            healthSlider.maxValue = 1f;
+            healthSlider.interactable = false;
+            healthSlider.value = 1f;
+        }
+
+        private void Start()
+        {
+            Debug.Log("GhostHealthBar coroutine starting");
+            _updateRoutine = StartCoroutine(UpdateBar());
+
+            Debug.Log($"GhostHealthBar Start — canvas position: " +
+                      $"{healthBarCanvas.transform.position}, " +
+                      $"world scale: {healthBarCanvas.transform.lossyScale}");
         }
 
         private void OnDisable()
@@ -128,111 +93,54 @@ namespace Ashlight.UI
 
         private void LateUpdate()
         {
-            if (_canvasTransform == null || targetCamera == null)
+            if (Camera.main == null)
             {
                 return;
             }
 
-            Vector3 lookDirection = _canvasTransform.position - targetCamera.transform.position;
-            if (lookDirection.sqrMagnitude > 0.0001f)
-            {
-                _canvasTransform.rotation = Quaternion.LookRotation(lookDirection);
-            }
+            transform.LookAt(
+                transform.position + Camera.main.transform.rotation * Vector3.forward,
+                Camera.main.transform.rotation * Vector3.up);
         }
 
-        /// <summary>Refreshes slider value, color, and visibility immediately.</summary>
-        public void RefreshHealthBar()
-        {
-            if (ghostAI == null || healthSlider == null)
-            {
-                return;
-            }
-
-            float healthPercent = ghostAI.GhostHealthPercent;
-            healthSlider.value = healthPercent;
-
-            if (fillImage != null)
-            {
-                fillImage.color = GetColorForHealthPercent(healthPercent);
-            }
-
-            bool shouldShow = ShouldShowForState(ghostAI.CurrentState) && ghostAI.IsSpawnActive;
-            if (healthCanvas != null)
-            {
-                healthCanvas.enabled = shouldShow;
-            }
-        }
-
-        private IEnumerator UpdateHealthBarRoutine()
+        private IEnumerator UpdateBar()
         {
             WaitForSeconds wait = new WaitForSeconds(UpdateInterval);
 
-            while (enabled)
+            while (true)
             {
-                RefreshHealthBar();
+                if (ghostAI == null || healthSlider == null || fillImage == null || healthBarCanvas == null)
+                {
+                    yield return wait;
+                    continue;
+                }
+
+                Debug.Log($"UpdateBar tick — health: {ghostAI.GhostHealthPercent:F2}, " +
+                          $"slider value: {healthSlider.value:F2}, " +
+                          $"canvas active: {healthBarCanvas.gameObject.activeSelf}, " +
+                          $"canvas pos: {healthBarCanvas.transform.position}");
+
+                float healthPercent = ghostAI.GhostHealthPercent;
+
+                healthSlider.value = healthPercent;
+
+                if (healthPercent > 0.6f)
+                {
+                    fillImage.color = new Color(0.298f, 0.686f, 0.314f);
+                }
+                else if (healthPercent > 0.3f)
+                {
+                    fillImage.color = new Color(1f, 0.757f, 0.027f);
+                }
+                else
+                {
+                    fillImage.color = new Color(0.957f, 0.263f, 0.212f);
+                }
+
+                healthBarCanvas.gameObject.SetActive(true);
+
                 yield return wait;
             }
-        }
-
-        private void BuildHealthBarUI()
-        {
-            GameObject canvasObject = new GameObject("GhostHealthCanvas");
-            canvasObject.transform.SetParent(transform, false);
-            canvasObject.transform.localPosition = new Vector3(0f, HeadOffsetY, 0f);
-            canvasObject.transform.localRotation = Quaternion.identity;
-            canvasObject.transform.localScale = Vector3.one * WorldCanvasScale;
-
-            healthCanvas = canvasObject.AddComponent<Canvas>();
-            healthCanvas.renderMode = RenderMode.WorldSpace;
-            healthCanvas.worldCamera = targetCamera;
-
-            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.dynamicPixelsPerUnit = 10f;
-            canvasObject.AddComponent<GraphicRaycaster>();
-
-            RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
-            canvasRect.sizeDelta = new Vector2(CanvasWidth, CanvasHeight);
-
-            GameObject backgroundObject = new GameObject("Background");
-            backgroundObject.transform.SetParent(canvasObject.transform, false);
-            Image backgroundImage = backgroundObject.AddComponent<Image>();
-            backgroundImage.color = new Color(0.05f, 0.05f, 0.05f, 0.85f);
-            RectTransform backgroundRect = backgroundObject.GetComponent<RectTransform>();
-            backgroundRect.anchorMin = Vector2.zero;
-            backgroundRect.anchorMax = Vector2.one;
-            backgroundRect.offsetMin = Vector2.zero;
-            backgroundRect.offsetMax = Vector2.zero;
-
-            GameObject sliderObject = new GameObject("HealthSlider");
-            sliderObject.transform.SetParent(canvasObject.transform, false);
-            healthSlider = sliderObject.AddComponent<Slider>();
-            RectTransform sliderRect = sliderObject.GetComponent<RectTransform>();
-            sliderRect.anchorMin = Vector2.zero;
-            sliderRect.anchorMax = Vector2.one;
-            sliderRect.offsetMin = new Vector2(3f, 3f);
-            sliderRect.offsetMax = new Vector2(-3f, -3f);
-
-            GameObject fillAreaObject = new GameObject("Fill Area");
-            fillAreaObject.transform.SetParent(sliderObject.transform, false);
-            RectTransform fillAreaRect = fillAreaObject.AddComponent<RectTransform>();
-            fillAreaRect.anchorMin = Vector2.zero;
-            fillAreaRect.anchorMax = Vector2.one;
-            fillAreaRect.offsetMin = Vector2.zero;
-            fillAreaRect.offsetMax = Vector2.zero;
-
-            GameObject fillObject = new GameObject("Fill");
-            fillObject.transform.SetParent(fillAreaObject.transform, false);
-            fillImage = fillObject.AddComponent<Image>();
-            fillImage.color = GreenHealth;
-            RectTransform fillRect = fillObject.GetComponent<RectTransform>();
-            fillRect.anchorMin = Vector2.zero;
-            fillRect.anchorMax = Vector2.one;
-            fillRect.offsetMin = Vector2.zero;
-            fillRect.offsetMax = Vector2.zero;
-
-            healthSlider.fillRect = fillRect;
-            healthSlider.targetGraphic = fillImage;
-            healthCanvas.enabled = false;
         }
     }
 }

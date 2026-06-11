@@ -119,84 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &222707803
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 222707804}
-  - component: {fileID: 222707806}
-  - component: {fileID: 222707805}
-  m_Layer: 0
-  m_Name: ChurchSafeZone
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &222707804
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 222707803}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1493311140}
-  m_Father: {fileID: 554874573}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &222707805
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 222707803}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 80a12f29e38d8442d84c6c28b3bf2dd4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Environment.ChurchSafeZone
-  playerHealth: {fileID: 1714774880}
-  holyTorch: {fileID: 633351464}
-  saveSystem: {fileID: 0}
-  ghostSpawnManager: {fileID: 1060434979}
-  safeZoneCollider: {fileID: 554874570}
-  _onPlayerEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  _onPlayerExited:
-    m_PersistentCalls:
-      m_Calls: []
---- !u!65 &222707806
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 222707803}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -743,6 +665,7 @@ GameObject:
   - component: {fileID: 554874572}
   - component: {fileID: 554874571}
   - component: {fileID: 554874570}
+  - component: {fileID: 554874574}
   m_Layer: 0
   m_Name: Church
   m_TagString: Untagged
@@ -841,9 +764,32 @@ Transform:
   m_LocalScale: {x: 10, y: 10, z: 10}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 222707804}
+  - {fileID: 1493311140}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &554874574
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 554874569}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80a12f29e38d8442d84c6c28b3bf2dd4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Environment.ChurchSafeZone
+  playerHealth: {fileID: 1714774880}
+  holyTorch: {fileID: 633351464}
+  saveSystem: {fileID: 655356907}
+  ghostSpawnManager: {fileID: 1060434979}
+  safeZoneCollider: {fileID: 554874570}
+  _onPlayerEntered:
+    m_PersistentCalls:
+      m_Calls: []
+  _onPlayerExited:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &561687791
 GameObject:
   m_ObjectHideFlags: 0
@@ -1208,6 +1154,53 @@ MonoBehaviour:
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: af8a9afb456ac4fff897c9dc40b494cc, type: 2}
   m_BuildHeightMesh: 0
+--- !u!1 &655356906
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 655356908}
+  - component: {fileID: 655356907}
+  m_Layer: 0
+  m_Name: _SaveSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &655356907
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 655356906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a31ce3258771a4e5798ebbf23bc326ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Systems.SaveSystem
+  player: {fileID: 1714774886}
+  playerHealth: {fileID: 1714774880}
+  holyWaterInventory: {fileID: 11400000, guid: 613a3901407784ba3bb6d986ff4c0771, type: 2}
+--- !u!4 &655356908
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 655356906}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &741310225
 GameObject:
   m_ObjectHideFlags: 0
@@ -1497,7 +1490,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9533325f83e7d42b38b2785530424cf3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Ghost.GhostSpawnManager
-  ghostPrefab: {fileID: 0}
+  ghostPrefab: {fileID: 1943888514108239003, guid: e363b614bdfea48ab8b31c10c061afe5, type: 3}
   spawnPoints:
   - point: {fileID: 348680352}
     weight: 0
@@ -1513,7 +1506,7 @@ MonoBehaviour:
     weight: 0
   dayNightCycle: {fileID: 1147873195}
   player: {fileID: 1714774886}
-  playerTorch: {fileID: 0}
+  playerTorch: {fileID: 633351464}
 --- !u!1 &1147873194
 GameObject:
   m_ObjectHideFlags: 0
@@ -1716,6 +1709,7 @@ GameObject:
   - component: {fileID: 1493311143}
   - component: {fileID: 1493311142}
   - component: {fileID: 1493311141}
+  - component: {fileID: 1493311144}
   m_Layer: 0
   m_Name: AltarInteraction
   m_TagString: Untagged
@@ -1731,12 +1725,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1493311139}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 222707804}
+  m_Father: {fileID: 554874573}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!136 &1493311141
 CapsuleCollider:
@@ -1818,6 +1812,27 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1493311139}
   m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1493311144
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1493311139}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3fb90c4380e7b446f98d1377ff71ba05, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Environment.AltarInteraction
+  holyWaterInventory: {fileID: 11400000, guid: 613a3901407784ba3bb6d986ff4c0771, type: 2}
+  holyTorch: {fileID: 633351464}
+  player: {fileID: 1714774886}
+  playerController: {fileID: 1714774881}
+  blessingParticles: {fileID: 0}
+  promptDocument: {fileID: 0}
+  _onBlessingReceived:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &1640535328
 GameObject:
   m_ObjectHideFlags: 0
@@ -1827,6 +1842,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1640535329}
+  - component: {fileID: 1640535331}
+  - component: {fileID: 1640535330}
   m_Layer: 0
   m_Name: _HUD
   m_TagString: Untagged
@@ -1846,10 +1863,48 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1903279137}
+  m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1640535330
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1640535328}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb9b2700467154e4ca894893faaa5d66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Ashlight.UI.HUDManager
+  hudLayout: {fileID: 9197481963319205126, guid: b57eece6073144e7eab363151228feec, type: 3}
+  holyWaterInventory: {fileID: 11400000, guid: 613a3901407784ba3bb6d986ff4c0771, type: 2}
+  holyTorch: {fileID: 633351464}
+  dayNightCycle: {fileID: 1147873195}
+--- !u!114 &1640535331
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1640535328}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
+  m_PanelSettings: {fileID: 11400000, guid: 64cf3fe5908d8428da7b2ef8bc464cb7, type: 2}
+  m_ParentUI: {fileID: 0}
+  sourceAsset: {fileID: 9197481963319205126, guid: b57eece6073144e7eab363151228feec, type: 3}
+  m_SortingOrder: 0
+  m_Position: 0
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_WorldSpaceCollider: {fileID: 0}
 --- !u!1 &1714774879
 GameObject:
   m_ObjectHideFlags: 0
@@ -2270,61 +2325,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1060434978}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1903279136
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1903279137}
-  - component: {fileID: 1903279138}
-  m_Layer: 0
-  m_Name: UIDocument
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1903279137
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1903279136}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1640535329}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1903279138
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1903279136}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 11400000, guid: 64cf3fe5908d8428da7b2ef8bc464cb7, type: 2}
-  m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 9197481963319205126, guid: b57eece6073144e7eab363151228feec, type: 3}
-  m_SortingOrder: 0
-  m_Position: 0
-  m_WorldSpaceSizeMode: 1
-  m_WorldSpaceWidth: 1920
-  m_WorldSpaceHeight: 1080
-  m_PivotReferenceSize: 0
-  m_Pivot: 0
-  m_WorldSpaceCollider: {fileID: 0}
 --- !u!1 &2087776849
 GameObject:
   m_ObjectHideFlags: 0
@@ -2367,6 +2367,7 @@ SceneRoots:
   - {fileID: 1147873196}
   - {fileID: 1640535329}
   - {fileID: 1851476674}
+  - {fileID: 655356908}
   - {fileID: 652192896}
   - {fileID: 1714774886}
   - {fileID: 554874573}

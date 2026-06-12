@@ -161,7 +161,7 @@ namespace Ashlight.UI
 
             if (holyTorch != null)
             {
-                holyTorch.OnFuelChanged.AddListener(RefreshTorchIndicator);
+                holyTorch.OnFuelChanged.AddListener(OnTorchFuelChanged);
                 holyTorch.OnTorchLit.AddListener(RefreshTorchIndicator);
                 holyTorch.OnTorchLow.AddListener(RefreshTorchIndicator);
                 holyTorch.OnTorchExtinguished.AddListener(RefreshTorchIndicator);
@@ -185,7 +185,7 @@ namespace Ashlight.UI
 
             if (holyTorch != null)
             {
-                holyTorch.OnFuelChanged.RemoveListener(RefreshTorchIndicator);
+                holyTorch.OnFuelChanged.RemoveListener(OnTorchFuelChanged);
                 holyTorch.OnTorchLit.RemoveListener(RefreshTorchIndicator);
                 holyTorch.OnTorchLow.RemoveListener(RefreshTorchIndicator);
                 holyTorch.OnTorchExtinguished.RemoveListener(RefreshTorchIndicator);
@@ -212,6 +212,11 @@ namespace Ashlight.UI
             _holyWaterBar.value = holyWaterInventory.Current;
             _holyWaterBar.highValue = holyWaterInventory.MaxCapacity;
             ApplyHolyWaterBarColor();
+        }
+
+        private void OnTorchFuelChanged(float normalizedFuel)
+        {
+            RefreshTorchIndicator();
         }
 
         private void RefreshTorchIndicator()

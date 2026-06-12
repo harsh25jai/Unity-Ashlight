@@ -19,6 +19,7 @@ namespace Ashlight.Systems
         [SerializeField] private UnityEvent _onEmpty;
         [SerializeField] private UnityEvent _onReplenished;
         [SerializeField] private UnityEvent _onAmountChanged;
+        [SerializeField] private UnityEvent<float> _onInventoryChanged;
 
         [System.NonSerialized] private bool _criticalLevelFired;
 
@@ -43,6 +44,9 @@ namespace Ashlight.Systems
         /// <summary>Invoked whenever the Holy Water amount changes.</summary>
         public UnityEvent OnAmountChanged => _onAmountChanged;
 
+        /// <summary>Invoked whenever inventory changes with normalized fill from 0 to 1.</summary>
+        public UnityEvent<float> OnInventoryChanged => _onInventoryChanged;
+
         /// <summary>
         /// Attempts to spend Holy Water.
         /// </summary>
@@ -64,7 +68,7 @@ namespace Ashlight.Systems
             current -= amount;
             current = Mathf.Max(0f, current);
             EvaluateLevelEvents(previous);
-            _onAmountChanged?.Invoke();
+            NotifyInventoryChanged();
             return true;
         }
 
@@ -88,7 +92,7 @@ namespace Ashlight.Systems
             }
 
             EvaluateLevelEvents(previous);
-            _onAmountChanged?.Invoke();
+            NotifyInventoryChanged();
         }
 
         /// <summary>Resets Holy Water to maximum capacity.</summary>
@@ -103,7 +107,13 @@ namespace Ashlight.Systems
                 _onReplenished?.Invoke();
             }
 
+            NotifyInventoryChanged();
+        }
+
+        private void NotifyInventoryChanged()
+        {
             _onAmountChanged?.Invoke();
+            _onInventoryChanged?.Invoke(FillPercent);
         }
 
         private void OnDisable()

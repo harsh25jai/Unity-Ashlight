@@ -37,7 +37,7 @@ namespace Ashlight.Systems
         [SerializeField] private UnityEvent _onTorchLit;
         [SerializeField] private UnityEvent _onTorchLow;
         [SerializeField] private UnityEvent _onTorchExtinguished;
-        [SerializeField] private UnityEvent _onFuelChanged;
+        [SerializeField] private UnityEvent<float> _onFuelChanged;
 
         private float _currentFuel;
         private bool _combatMode;
@@ -49,6 +49,9 @@ namespace Ashlight.Systems
 
         /// <summary>Gets the maximum torch fuel capacity.</summary>
         public float MaxFuel => maxFuel;
+
+        /// <summary>Gets the current torch fuel amount.</summary>
+        public float CurrentFuel => _currentFuel;
 
         /// <summary>Gets current fuel as a 0-1 percentage.</summary>
         public float FuelPercent => maxFuel > 0f ? Mathf.Clamp01(_currentFuel / maxFuel) : 0f;
@@ -82,8 +85,8 @@ namespace Ashlight.Systems
         /// <summary>Invoked when fuel reaches zero.</summary>
         public UnityEvent OnTorchExtinguished => _onTorchExtinguished;
 
-        /// <summary>Invoked when torch fuel amount changes.</summary>
-        public UnityEvent OnFuelChanged => _onFuelChanged;
+        /// <summary>Invoked when torch fuel amount changes with normalized fuel from 0 to 1.</summary>
+        public UnityEvent<float> OnFuelChanged => _onFuelChanged;
 
         private void Awake()
         {
@@ -282,7 +285,7 @@ namespace Ashlight.Systems
 
         private void NotifyFuelChanged()
         {
-            _onFuelChanged?.Invoke();
+            _onFuelChanged?.Invoke(FuelPercent);
         }
 
         private void ApplyLightState()

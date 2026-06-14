@@ -50,7 +50,7 @@ namespace Ashlight.Systems
             string json = JsonUtility.ToJson(data, true);
             string path = Path.Combine(Application.persistentDataPath, SaveFileName);
             File.WriteAllText(path, json);
-            Debug.Log($"{nameof(SaveSystem)} auto-saved to {path}");
+            // Debug.Log($"{nameof(SaveSystem)} auto-saved to {path}");
         }
 
         /// <summary>Builds a save snapshot from current scene references.</summary>

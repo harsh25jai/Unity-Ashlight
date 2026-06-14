@@ -201,7 +201,7 @@ namespace Ashlight.Environment
             playerRigidbody = playerObject.AddComponent<Rigidbody>();
             playerRigidbody.isKinematic = true;
             playerRigidbody.useGravity = false;
-            Debug.Log($"{nameof(ChurchSafeZone)} added kinematic {nameof(Rigidbody)} to Player for trigger detection.");
+            // Debug.Log($"{nameof(ChurchSafeZone)} added kinematic {nameof(Rigidbody)} to Player for trigger detection.");
         }
 
         private void ProcessPlayerEnter(Collider playerCollider)
@@ -236,7 +236,7 @@ namespace Ashlight.Environment
 
             _torchRefuelCoroutine = StartCoroutine(DelayedTorchRefuelRoutine());
 
-            Debug.Log($"{nameof(ChurchSafeZone)}: Player entered church safe zone.");
+            // Debug.Log($"{nameof(ChurchSafeZone)}: Player entered church safe zone.");
             OnPlayerEnterChurch?.Invoke();
             _onPlayerEntered?.Invoke();
         }
@@ -269,7 +269,7 @@ namespace Ashlight.Environment
 
             _activePlayerController = null;
 
-            Debug.Log($"{nameof(ChurchSafeZone)}: Player exited church safe zone.");
+            // Debug.Log($"{nameof(ChurchSafeZone)}: Player exited church safe zone.");
             OnPlayerExitChurch?.Invoke();
             _onPlayerExited?.Invoke();
         }

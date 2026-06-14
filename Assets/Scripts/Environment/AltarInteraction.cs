@@ -149,7 +149,7 @@ namespace Ashlight.Environment
                 return;
             }
 
-            Debug.Log($"{nameof(AltarInteraction)}: Player entered altar trigger on {name}.");
+            // Debug.Log($"{nameof(AltarInteraction)}: Player entered altar trigger on {name}.");
             TryInteract();
         }
 
@@ -184,7 +184,7 @@ namespace Ashlight.Environment
                     }
 
                     RefillTorch();
-                    Debug.Log($"{nameof(AltarInteraction)}: Torch fuel refilling at {name}.");
+                    // Debug.Log($"{nameof(AltarInteraction)}: Torch fuel refilling at {name}.");
                     break;
 
                 case AltarType.WaterRefill:
@@ -195,7 +195,7 @@ namespace Ashlight.Environment
                     }
 
                     RefillHolyWater();
-                    Debug.Log($"{nameof(AltarInteraction)}: Holy Water refilling at {name}.");
+                    // Debug.Log($"{nameof(AltarInteraction)}: Holy Water refilling at {name}.");
                     break;
             }
 
@@ -256,7 +256,7 @@ namespace Ashlight.Environment
             holyTorch.SetFuel(targetFuel);
 
             _refillRoutine = null;
-            Debug.Log($"{nameof(AltarInteraction)}: Torch fuel refill complete at {name}.");
+            // Debug.Log($"{nameof(AltarInteraction)}: Torch fuel refill complete at {name}.");
         }
 
         private IEnumerator RefillHolyWaterRoutine()
@@ -289,7 +289,7 @@ namespace Ashlight.Environment
             }
 
             _refillRoutine = null;
-            Debug.Log($"{nameof(AltarInteraction)}: Holy Water refill complete at {name}.");
+            // Debug.Log($"{nameof(AltarInteraction)}: Holy Water refill complete at {name}.");
         }
 
         private void BeginCooldown()
@@ -306,14 +306,14 @@ namespace Ashlight.Environment
         {
             _isOnCooldown = true;
             _cooldownEndTime = Time.time + BlessingCooldown;
-            Debug.Log($"{nameof(AltarInteraction)}: Altar {name} entered cooldown for {BlessingCooldown} seconds.");
+            // Debug.Log($"{nameof(AltarInteraction)}: Altar {name} entered cooldown for {BlessingCooldown} seconds.");
 
             yield return new WaitForSeconds(BlessingCooldown);
 
             _isOnCooldown = false;
             _cooldownEndTime = 0f;
             _cooldownRoutine = null;
-            Debug.Log($"{nameof(AltarInteraction)}: Altar {name} is ready again.");
+            // Debug.Log($"{nameof(AltarInteraction)}: Altar {name} is ready again.");
         }
 
         private void EnsurePlayerTriggerPhysics(GameObject playerObject)
@@ -332,7 +332,7 @@ namespace Ashlight.Environment
             playerRigidbody = playerObject.AddComponent<Rigidbody>();
             playerRigidbody.isKinematic = true;
             playerRigidbody.useGravity = false;
-            Debug.Log($"{nameof(AltarInteraction)} added kinematic {nameof(Rigidbody)} to Player for trigger detection.");
+            // Debug.Log($"{nameof(AltarInteraction)} added kinematic {nameof(Rigidbody)} to Player for trigger detection.");
         }
 
         private bool IsPlayerInRange()

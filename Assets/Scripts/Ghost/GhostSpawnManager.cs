@@ -41,6 +41,7 @@ namespace Ashlight.Ghost
 
         private readonly List<GhostAIController> _pool = new List<GhostAIController>();
         private readonly List<GhostAIController> _activeGhosts = new List<GhostAIController>();
+        private readonly List<GhostAIController> _activeGhostsQuery = new List<GhostAIController>();
         private int _maxActiveGhosts = 3;
         private Coroutine _spawnCoroutine;
         private BoxCollider _spawnExclusionZone;
@@ -118,6 +119,26 @@ namespace Ashlight.Ghost
         public void ClearSpawnExclusionZone()
         {
             _spawnExclusionZone = null;
+        }
+
+        /// <summary>Gets currently active spawned ghosts.</summary>
+        public List<GhostAIController> ActiveGhosts
+        {
+            get
+            {
+                _activeGhostsQuery.Clear();
+                CleanupInactiveGhosts();
+
+                foreach (GhostAIController ghost in _activeGhosts)
+                {
+                    if (ghost != null && ghost.gameObject.activeSelf)
+                    {
+                        _activeGhostsQuery.Add(ghost);
+                    }
+                }
+
+                return _activeGhostsQuery;
+            }
         }
 
         /// <summary>

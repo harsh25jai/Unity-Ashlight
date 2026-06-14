@@ -32,6 +32,7 @@ namespace Ashlight.Systems
         [SerializeField] private Light pointLight;
         [SerializeField] private Light spotLight;
         [SerializeField] private float healthModifier = 1f;
+        [SerializeField] private float fearMultiplier;
 
         [Header("Events")]
         [SerializeField] private UnityEvent _onTorchLit;
@@ -174,6 +175,13 @@ namespace Ashlight.Systems
         public void SetCombatMode(bool enabled)
         {
             _combatMode = enabled;
+        }
+
+        /// <summary>Sets fear-driven flicker intensity multiplier from 0 to 1.</summary>
+        /// <param name="fear">Normalized fear amount.</param>
+        public void SetFearMultiplier(float fear)
+        {
+            fearMultiplier = Mathf.Clamp01(fear);
         }
 
         /// <summary>Adds fuel and re-lights the torch when previously extinguished.</summary>
@@ -383,7 +391,8 @@ namespace Ashlight.Systems
         {
             while (_currentFuel > 0f && FuelPercent < LowFuelThreshold)
             {
-                _flickerIntensityOffset = Random.Range(-FlickerIntensityVariance, FlickerIntensityVariance);
+                float flickerRange = FlickerIntensityVariance + fearMultiplier * 0.5f;
+                _flickerIntensityOffset = Random.Range(-flickerRange, flickerRange);
                 ApplyLightState();
 
                 float waitDuration = Random.Range(FlickerWaitMin, FlickerWaitMax);

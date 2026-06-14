@@ -127,6 +127,7 @@ GameObject:
   - component: {fileID: 1943888514108239003}
   - component: {fileID: 5355452784084200076}
   - component: {fileID: -6703818510507117128}
+  - component: {fileID: 852014377741922231}
   m_Layer: 0
   m_Name: Ghost_Wanderer
   m_TagString: Untagged
@@ -148,6 +149,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 210491854414985325}
+  - {fileID: 6827114946128238835}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &96374754775175286
@@ -270,7 +272,6 @@ MonoBehaviour:
   player: {fileID: 0}
   playerHealth: {fileID: 0}
   ghostRenderer: {fileID: 741621586557670080}
-  ghostHealthBarFill: {fileID: 3836509240893175443}
   deathParticles: {fileID: 0}
   retreatLightThreshold: 0.95
   maxGhostHealth: 100
@@ -314,6 +315,30 @@ MonoBehaviour:
   ghostAI: {fileID: 1943888514108239003}
   damageCheckInterval: 0.2
   maxTorchDamageRange: 8
+--- !u!114 &852014377741922231
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2469991766261861540}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f190e41792b2f4ad0aa166ea358b8a7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Audio.GhostAudioEmitter
+  ghostAI: {fileID: 1943888514108239003}
+  ghostAudioSource: {fileID: 375490440167729751}
+  ghostGroup: {fileID: 2276596712850470454, guid: 3876f0761735e42a6a2d08b3563e68b3, type: 2}
+  wanderSounds:
+  - {fileID: 8300000, guid: 6e489a8638049459297c6aea4b34eb20, type: 3}
+  - {fileID: 8300000, guid: 0c5455ef8e3b843a2bb0175e4f3d0e69, type: 3}
+  stalkSounds:
+  - {fileID: 8300000, guid: 6e489a8638049459297c6aea4b34eb20, type: 3}
+  chaseSounds:
+  - {fileID: 8300000, guid: 470c49187b83b4f21ad6267fa956b7c5, type: 3}
+  attackSounds: []
+  retreatSound: {fileID: 8300000, guid: 1e8e3d92099d94b358db87fa9f757a61, type: 3}
 --- !u!1 &2689706525731593241
 GameObject:
   m_ObjectHideFlags: 0
@@ -478,6 +503,135 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &3887942470090420701
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6827114946128238835}
+  - component: {fileID: 375490440167729751}
+  m_Layer: 0
+  m_Name: GhostAudioSource
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6827114946128238835
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3887942470090420701}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7199222708832898857}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!82 &375490440167729751
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3887942470090420701}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 2276596712850470454, guid: 3876f0761735e42a6a2d08b3563e68b3, type: 2}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &8139728855578008794
 GameObject:
   m_ObjectHideFlags: 0
@@ -554,5 +708,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Ashlight.UI.GhostHealthBar
   healthSlider: {fileID: 3618446934651385051}
   fillImage: {fileID: 1038286851680208723}
-  ghostAI: {fileID: 1943888514108239003}
   healthBarCanvas: {fileID: 3688820253283358537}

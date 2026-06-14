@@ -54,7 +54,7 @@ namespace Ashlight.UI
         {
             _pendingHide = false;
 
-            Debug.Log($"{nameof(GhostHealthBar)} OnEnable fired on {name}.", this);
+            // Debug.Log($"{nameof(GhostHealthBar)} OnEnable fired on {name}.", this);
 
             if (_ghostAI != null)
             {
@@ -78,15 +78,15 @@ namespace Ashlight.UI
                 return;
             }
 
-            Debug.Log("[GhostHealthBar] Found ghost: " + foundGhost.gameObject.name, this);
+            // Debug.Log("[GhostHealthBar] Found ghost: " + foundGhost.gameObject.name, this);
 
             _ghostAI = foundGhost;
             _ghostAI.HealthPercentChanged += OnHealthChanged;
-            Debug.Log($"{nameof(GhostHealthBar)} event subscription succeeded on {_ghostAI.gameObject.name}.", this);
+            // Debug.Log($"{nameof(GhostHealthBar)} event subscription succeeded on {_ghostAI.gameObject.name}.", this);
 
             float healthPercent = _ghostAI.GhostHealthPercent;
             ApplyHealthToBar(healthPercent);
-            Debug.Log($"{nameof(GhostHealthBar)} OnHealthChanged fired — health: {healthPercent:F2} on {name}.", this);
+            // Debug.Log($"{nameof(GhostHealthBar)} OnHealthChanged fired — health: {healthPercent:F2} on {name}.", this);
         }
 
         private void OnDisable()
@@ -150,7 +150,7 @@ namespace Ashlight.UI
 
         private void OnHealthChanged(float healthPercent)
         {
-            Debug.Log($"{nameof(GhostHealthBar)} OnHealthChanged fired — health: {healthPercent:F2} on {name}.", this);
+            // Debug.Log($"{nameof(GhostHealthBar)} OnHealthChanged fired — health: {healthPercent:F2} on {name}.", this);
 
             ApplyHealthToBar(healthPercent);
 

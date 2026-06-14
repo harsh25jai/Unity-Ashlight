@@ -1,3 +1,4 @@
+using System.Collections;
 using Ashlight.Player;
 using Ashlight.Systems;
 using UnityEngine;
@@ -8,17 +9,29 @@ using UnityEngine.UIElements;
 namespace Ashlight.Environment
 {
     /// <summary>
-    /// Altar blessing interaction that refills Holy Water and torch fuel on a cooldown.
+    /// Altar refill type offered at an interaction point.
+    /// </summary>
+    public enum AltarType
+    {
+        TorchRefill,
+        WaterRefill
+    }
+
+    /// <summary>
+    /// Proximity altar interaction with optional auto-refill and manual E-key use.
     /// </summary>
     [DisallowMultipleComponent]
     public class AltarInteraction : MonoBehaviour
     {
-        private const float InteractionRange = 2f;
         private const float BlessingCooldown = 60f;
         private const string PromptText = "Press E to receive blessing";
 
-        [SerializeField] private HolyWaterInventory holyWaterInventory;
+        [SerializeField] private AltarType altarType = AltarType.TorchRefill;
+        [SerializeField] private float interactRange = 2f;
+        [SerializeField] private float refillDuration = 2f;
+        [SerializeField] private bool autoRefill = false;
         [SerializeField] private HolyTorch holyTorch;
+        [SerializeField] private HolyWaterInventory inventoryAsset;
         [SerializeField] private Transform player;
         [SerializeField] private PlayerController playerController;
         [SerializeField] private ParticleSystem blessingParticles;
@@ -28,27 +41,38 @@ namespace Ashlight.Environment
         [SerializeField] private UnityEvent _onBlessingReceived;
 
         private Label _promptLabel;
-        private float _nextBlessingTime;
         private InputAction _interactAction;
+        private bool _isOnCooldown;
+        private float _cooldownEndTime;
+        private bool _wasInRange;
+        private Coroutine _cooldownRoutine;
+        private Coroutine _refillRoutine;
 
         /// <summary>Invoked when the player receives an altar blessing.</summary>
         public UnityEvent OnBlessingReceived => _onBlessingReceived;
 
-        /// <summary>Gets whether the blessing cooldown has elapsed.</summary>
-        public bool IsBlessingReady => Time.time >= _nextBlessingTime;
+        /// <summary>Gets whether the altar cooldown has elapsed.</summary>
+        public bool IsBlessingReady => !_isOnCooldown;
 
         /// <summary>Gets remaining cooldown seconds.</summary>
-        public float CooldownRemaining => Mathf.Max(0f, _nextBlessingTime - Time.time);
+        public float CooldownRemaining => _isOnCooldown ? Mathf.Max(0f, _cooldownEndTime - Time.time) : 0f;
 
-        private void Awake()
+        private void Start()
         {
-            if (player == null)
+            GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+            if (playerObject == null)
             {
-                GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
-                if (playerObject != null)
+                CharacterController characterController = FindAnyObjectByType<CharacterController>();
+                if (characterController != null)
                 {
-                    player = playerObject.transform;
+                    playerObject = characterController.gameObject;
                 }
+            }
+
+            if (playerObject != null)
+            {
+                player = playerObject.transform;
+                EnsurePlayerTriggerPhysics(playerObject);
             }
 
             if (playerController == null && player != null)
@@ -61,19 +85,24 @@ namespace Ashlight.Environment
                 _interactAction = playerController.InteractAction;
             }
 
-            if (holyWaterInventory == null)
-            {
-                Debug.LogWarning($"{nameof(AltarInteraction)} has no {nameof(HolyWaterInventory)} assigned.", this);
-            }
-
-            if (holyTorch == null && player != null)
+            if (altarType == AltarType.TorchRefill && holyTorch == null && player != null)
             {
                 holyTorch = player.GetComponentInChildren<HolyTorch>();
             }
 
-            if (holyTorch == null)
+            if (altarType == AltarType.TorchRefill && holyTorch == null)
             {
-                Debug.LogWarning($"{nameof(AltarInteraction)} has no {nameof(HolyTorch)} assigned.", this);
+                Debug.LogWarning($"{nameof(AltarInteraction)} torch altar has no {nameof(HolyTorch)} assigned.", this);
+            }
+
+            if (altarType == AltarType.WaterRefill && inventoryAsset == null)
+            {
+                Debug.LogWarning($"{nameof(AltarInteraction)} water altar has no {nameof(HolyWaterInventory)} assigned.", this);
+            }
+
+            if (player == null)
+            {
+                Debug.LogWarning($"{nameof(AltarInteraction)} could not resolve the player transform.", this);
             }
 
             BuildPromptUI();
@@ -85,40 +114,89 @@ namespace Ashlight.Environment
             {
                 _promptLabel.style.display = DisplayStyle.None;
             }
+
+            if (_cooldownRoutine != null)
+            {
+                StopCoroutine(_cooldownRoutine);
+                _cooldownRoutine = null;
+            }
+
+            StopRefillRoutine();
         }
 
         private void Update()
         {
-            UpdatePromptVisibility();
+            bool inRange = IsPlayerInRange();
+            UpdatePromptVisibility(inRange);
 
-            if (!IsPlayerInRange() || !IsBlessingReady)
+            if (inRange && !_wasInRange && autoRefill)
+            {
+                TryInteract();
+            }
+
+            if (inRange && IsBlessingReady && _interactAction != null && _interactAction.WasPressedThisFrame())
+            {
+                TryInteract();
+            }
+
+            _wasInRange = inRange;
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (!autoRefill || !other.CompareTag("Player"))
             {
                 return;
             }
 
-            if (_interactAction != null && _interactAction.WasPressedThisFrame())
-            {
-                TryReceiveBlessing();
-            }
+            Debug.Log($"{nameof(AltarInteraction)}: Player entered altar trigger on {name}.");
+            TryInteract();
         }
 
-        /// <summary>Attempts to grant a blessing when the player is in range and off cooldown.</summary>
-        /// <returns>True when the blessing was applied.</returns>
-        public bool TryReceiveBlessing()
+        /// <summary>Attempts to apply the altar refill when in range and off cooldown.</summary>
+        /// <returns>True when the refill was applied.</returns>
+        public bool TryInteract()
         {
             if (!IsPlayerInRange() || !IsBlessingReady)
             {
                 return false;
             }
 
-            if (holyWaterInventory != null)
-            {
-                holyWaterInventory.ResetToFull();
-            }
+            return ApplyAltarRefill();
+        }
 
-            if (holyTorch != null)
+        /// <summary>Attempts to grant a blessing when the player is in range and off cooldown.</summary>
+        /// <returns>True when the blessing was applied.</returns>
+        public bool TryReceiveBlessing()
+        {
+            return TryInteract();
+        }
+
+        private bool ApplyAltarRefill()
+        {
+            switch (altarType)
             {
-                holyTorch.Refuel(holyTorch.MaxFuel);
+                case AltarType.TorchRefill:
+                    if (holyTorch == null)
+                    {
+                        Debug.LogWarning($"{nameof(AltarInteraction)}: Torch refill failed — no {nameof(HolyTorch)}.", this);
+                        return false;
+                    }
+
+                    RefillTorch();
+                    Debug.Log($"{nameof(AltarInteraction)}: Torch fuel refilling at {name}.");
+                    break;
+
+                case AltarType.WaterRefill:
+                    if (inventoryAsset == null)
+                    {
+                        Debug.LogWarning($"{nameof(AltarInteraction)}: Water refill failed — no inventory asset.", this);
+                        return false;
+                    }
+
+                    RefillHolyWater();
+                    Debug.Log($"{nameof(AltarInteraction)}: Holy Water refilling at {name}.");
+                    break;
             }
 
             if (blessingParticles != null)
@@ -126,9 +204,135 @@ namespace Ashlight.Environment
                 blessingParticles.Play();
             }
 
-            _nextBlessingTime = Time.time + BlessingCooldown;
+            BeginCooldown();
             _onBlessingReceived?.Invoke();
             return true;
+        }
+
+        /// <summary>Starts a smooth torch fuel refill toward maximum capacity.</summary>
+        private void RefillTorch()
+        {
+            StopRefillRoutine();
+            _refillRoutine = StartCoroutine(RefillTorchRoutine());
+        }
+
+        /// <summary>Starts a smooth Holy Water refill toward maximum capacity.</summary>
+        private void RefillHolyWater()
+        {
+            StopRefillRoutine();
+            _refillRoutine = StartCoroutine(RefillHolyWaterRoutine());
+        }
+
+        private void StopRefillRoutine()
+        {
+            if (_refillRoutine != null)
+            {
+                StopCoroutine(_refillRoutine);
+                _refillRoutine = null;
+            }
+        }
+
+        private IEnumerator RefillTorchRoutine()
+        {
+            if (holyTorch == null)
+            {
+                yield break;
+            }
+
+            float duration = Mathf.Max(0.01f, refillDuration);
+            float targetFuel = holyTorch.MaxFuel;
+            float startFuel = holyTorch.CurrentFuel;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float normalizedTime = Mathf.Clamp01(elapsed / duration);
+                float nextFuel = Mathf.Lerp(startFuel, targetFuel, normalizedTime);
+                holyTorch.SetFuel(nextFuel);
+                yield return null;
+            }
+
+            holyTorch.SetFuel(targetFuel);
+
+            _refillRoutine = null;
+            Debug.Log($"{nameof(AltarInteraction)}: Torch fuel refill complete at {name}.");
+        }
+
+        private IEnumerator RefillHolyWaterRoutine()
+        {
+            if (inventoryAsset == null || refillDuration <= 0f)
+            {
+                yield break;
+            }
+
+            float targetAmount = inventoryAsset.MaxCapacity;
+            float fillRate = targetAmount / refillDuration;
+
+            while (inventoryAsset != null && inventoryAsset.Current < targetAmount)
+            {
+                float previousAmount = inventoryAsset.Current;
+                float nextAmount = Mathf.MoveTowards(previousAmount, targetAmount, fillRate * Time.deltaTime);
+                float delta = nextAmount - previousAmount;
+
+                if (delta > 0f)
+                {
+                    inventoryAsset.Replenish(delta);
+                }
+
+                yield return null;
+            }
+
+            if (inventoryAsset != null && inventoryAsset.Current < targetAmount)
+            {
+                inventoryAsset.Replenish(targetAmount - inventoryAsset.Current);
+            }
+
+            _refillRoutine = null;
+            Debug.Log($"{nameof(AltarInteraction)}: Holy Water refill complete at {name}.");
+        }
+
+        private void BeginCooldown()
+        {
+            if (_cooldownRoutine != null)
+            {
+                StopCoroutine(_cooldownRoutine);
+            }
+
+            _cooldownRoutine = StartCoroutine(CooldownRoutine());
+        }
+
+        private IEnumerator CooldownRoutine()
+        {
+            _isOnCooldown = true;
+            _cooldownEndTime = Time.time + BlessingCooldown;
+            Debug.Log($"{nameof(AltarInteraction)}: Altar {name} entered cooldown for {BlessingCooldown} seconds.");
+
+            yield return new WaitForSeconds(BlessingCooldown);
+
+            _isOnCooldown = false;
+            _cooldownEndTime = 0f;
+            _cooldownRoutine = null;
+            Debug.Log($"{nameof(AltarInteraction)}: Altar {name} is ready again.");
+        }
+
+        private void EnsurePlayerTriggerPhysics(GameObject playerObject)
+        {
+            if (playerObject == null)
+            {
+                return;
+            }
+
+            Rigidbody playerRigidbody = playerObject.GetComponent<Rigidbody>();
+            if (playerRigidbody != null)
+            {
+                return;
+            }
+
+            playerRigidbody = playerObject.AddComponent<Rigidbody>();
+            playerRigidbody.isKinematic = true;
+            playerRigidbody.useGravity = false;
+            Debug.Log($"{nameof(AltarInteraction)} added kinematic {nameof(Rigidbody)} to Player for trigger detection.");
         }
 
         private bool IsPlayerInRange()
@@ -139,17 +343,17 @@ namespace Ashlight.Environment
             }
 
             float distance = Vector3.Distance(transform.position, player.position);
-            return distance <= InteractionRange;
+            return distance <= interactRange;
         }
 
-        private void UpdatePromptVisibility()
+        private void UpdatePromptVisibility(bool inRange)
         {
             if (_promptLabel == null)
             {
                 return;
             }
 
-            bool showPrompt = IsPlayerInRange() && IsBlessingReady;
+            bool showPrompt = inRange && IsBlessingReady;
             _promptLabel.style.display = showPrompt ? DisplayStyle.Flex : DisplayStyle.None;
             _promptLabel.text = PromptText;
         }
@@ -180,6 +384,12 @@ namespace Ashlight.Environment
             _promptLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             _promptLabel.style.display = DisplayStyle.None;
             root.Add(_promptLabel);
+        }
+
+        private void OnDrawGizmosSelected()
+        {
+            Gizmos.color = new Color(0.95f, 0.85f, 0.35f, 0.85f);
+            Gizmos.DrawWireSphere(transform.position, interactRange);
         }
     }
 }

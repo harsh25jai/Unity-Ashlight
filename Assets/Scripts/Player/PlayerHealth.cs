@@ -34,16 +34,20 @@ namespace Ashlight.Player
         public bool IsDead => _isDead;
 
         /// <summary>Invoked when health reaches zero. GameManager should handle game-over flow.</summary>
-        public UnityEvent OnDeath => _onDeath;
+        public UnityEvent OnDeath => _onDeath ??= new UnityEvent();
 
         /// <summary>Invoked with current health after damage is applied.</summary>
-        public UnityEvent<float> OnDamageTaken => _onDamageTaken;
+        public UnityEvent<float> OnDamageTaken => _onDamageTaken ??= new UnityEvent<float>();
 
         /// <summary>Invoked with current health after healing is applied.</summary>
-        public UnityEvent<float> OnHealed => _onHealed;
+        public UnityEvent<float> OnHealed => _onHealed ??= new UnityEvent<float>();
 
         private void Awake()
         {
+            _onDeath ??= new UnityEvent();
+            _onDamageTaken ??= new UnityEvent<float>();
+            _onHealed ??= new UnityEvent<float>();
+
             if (holyTorch == null)
             {
                 holyTorch = GetComponentInChildren<HolyTorch>();

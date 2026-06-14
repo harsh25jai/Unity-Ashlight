@@ -201,6 +201,27 @@ namespace Ashlight.Systems
             NotifyFuelChanged();
         }
 
+        /// <summary>Sets absolute fuel level and immediately updates point and spot light output.</summary>
+        /// <param name="value">Fuel amount from 0 to max capacity.</param>
+        public void SetFuel(float value)
+        {
+            _currentFuel = Mathf.Clamp(value, 0f, maxFuel);
+            ApplyLightState();
+        }
+
+        /// <summary>Sets torch fuel to maximum, updates light output, and invokes the lit event.</summary>
+        public void RefillFuel()
+        {
+            if (!HasValidLights())
+            {
+                return;
+            }
+
+            _currentFuel = maxFuel;
+            ApplyLightState();
+            _onTorchLit?.Invoke();
+        }
+
         private bool HasValidLights()
         {
             return pointLight != null && spotLight != null;

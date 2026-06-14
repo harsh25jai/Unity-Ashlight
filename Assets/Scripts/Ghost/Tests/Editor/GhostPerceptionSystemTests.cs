@@ -26,7 +26,7 @@ namespace Ashlight.Ghost.Tests
         public void EvaluatePerception_ReturnsDetectedWhenCloseAndInArc()
         {
             Vector3 ghostPosition = Vector3.zero;
-            Vector3 playerPosition = new Vector3(2f, 0f, 0f);
+            Vector3 playerPosition = new Vector3(0f, 0f, 2f);
 
             PerceptionLevel level = GhostPerceptionSystem.EvaluatePerception(
                 ghostPosition,
@@ -43,7 +43,7 @@ namespace Ashlight.Ghost.Tests
         public void EvaluatePerception_ReducesRangeWhenTorchFuelIsHigh()
         {
             Vector3 ghostPosition = Vector3.zero;
-            Vector3 playerPosition = new Vector3(8f, 0f, 0f);
+            Vector3 playerPosition = new Vector3(0f, 0f, 6f);
 
             PerceptionLevel withoutTorch = GhostPerceptionSystem.EvaluatePerception(
                 ghostPosition,
@@ -61,7 +61,8 @@ namespace Ashlight.Ghost.Tests
                 lightResistance: 0.5f,
                 torchFuelPercent: 0.8f);
 
-            Assert.AreNotEqual(withoutTorch, withTorch);
+            Assert.AreEqual(PerceptionLevel.Suspicious, withoutTorch);
+            Assert.AreEqual(PerceptionLevel.Unaware, withTorch);
         }
     }
 }

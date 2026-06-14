@@ -1,4 +1,3 @@
-using System.Collections;
 using Ashlight.Ghost;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,33 +6,24 @@ namespace Ashlight.UI
 {
     /// <summary>
     /// World-space ghost health bar driven by a UI Slider with camera billboarding.
+    /// Pool-safe: resolves a fresh parent ghost reference on every activation.
     /// </summary>
     [DisallowMultipleComponent]
     public class GhostHealthBar : MonoBehaviour
     {
-        private const float UpdateInterval = 0.1f;
+        private static readonly Color FullHealthColor = new Color(0.298f, 0.686f, 0.314f);
+        private static readonly Color MidHealthColor = new Color(1f, 0.757f, 0.027f);
+        private static readonly Color LowHealthColor = new Color(0.957f, 0.263f, 0.212f);
 
         [SerializeField] private Slider healthSlider;
         [SerializeField] private Image fillImage;
-        [SerializeField] private GhostAIController ghostAI;
         [SerializeField] private Canvas healthBarCanvas;
 
-        private Coroutine _updateRoutine;
+        private GhostAIController _ghostAI;
+        private bool _pendingHide;
 
         private void Awake()
         {
-            if (ghostAI == null)
-            {
-                ghostAI = GetComponent<GhostAIController>();
-            }
-
-            if (ghostAI == null)
-            {
-                Debug.LogError($"{nameof(GhostHealthBar)} requires a {nameof(GhostAIController)}.", this);
-                enabled = false;
-                return;
-            }
-
             if (healthSlider == null)
             {
                 Debug.LogError($"{nameof(GhostHealthBar)} requires a {nameof(Slider)}.", this);
@@ -55,44 +45,67 @@ namespace Ashlight.UI
                 return;
             }
 
-            Debug.Log("GhostHealthBar initialized. Canvas: " +
-                      (healthBarCanvas != null ? "found" : "NULL") +
-                      ", HealthSlider: " + (healthSlider != null ? "found" : "NULL") +
-                      ", FillImage: " + (fillImage != null ? "found" : "NULL") +
-                      ", GhostAI: " + (ghostAI != null ? "found" : "NULL"));
-
-            Debug.Log($"HealthBarCanvas active: {healthBarCanvas.gameObject.activeSelf}, " +
-                      $"Canvas renderMode: {healthBarCanvas.renderMode}, " +
-                      $"Slider: {(healthSlider != null ? "found" : "NULL")}, " +
-                      $"Fill: {(fillImage != null ? "found" : "NULL")}");
-
             healthSlider.minValue = 0f;
             healthSlider.maxValue = 1f;
             healthSlider.interactable = false;
-            healthSlider.value = 1f;
         }
 
-        private void Start()
+        private void OnEnable()
         {
-            Debug.Log("GhostHealthBar coroutine starting");
-            _updateRoutine = StartCoroutine(UpdateBar());
+            _pendingHide = false;
 
-            Debug.Log($"GhostHealthBar Start — canvas position: " +
-                      $"{healthBarCanvas.transform.position}, " +
-                      $"world scale: {healthBarCanvas.transform.lossyScale}");
+            Debug.Log($"{nameof(GhostHealthBar)} OnEnable fired on {name}.", this);
+
+            if (_ghostAI != null)
+            {
+                _ghostAI.HealthPercentChanged -= OnHealthChanged;
+            }
+
+            _ghostAI = null;
+
+            if (healthBarCanvas != null)
+            {
+                healthBarCanvas.gameObject.SetActive(true);
+            }
+
+            GhostAIController foundGhost = GetComponentInParent<GhostAIController>(true);
+            if (foundGhost == null)
+            {
+                Debug.LogWarning(
+                    $"[GhostHealthBar] No {nameof(GhostAIController)} found in parent hierarchy for {name}. " +
+                    "Health bar will not update until a parent ghost is present.",
+                    this);
+                return;
+            }
+
+            Debug.Log("[GhostHealthBar] Found ghost: " + foundGhost.gameObject.name, this);
+
+            _ghostAI = foundGhost;
+            _ghostAI.HealthPercentChanged += OnHealthChanged;
+            Debug.Log($"{nameof(GhostHealthBar)} event subscription succeeded on {_ghostAI.gameObject.name}.", this);
+
+            float healthPercent = _ghostAI.GhostHealthPercent;
+            ApplyHealthToBar(healthPercent);
+            Debug.Log($"{nameof(GhostHealthBar)} OnHealthChanged fired — health: {healthPercent:F2} on {name}.", this);
         }
 
         private void OnDisable()
         {
-            if (_updateRoutine != null)
+            if (_ghostAI != null)
             {
-                StopCoroutine(_updateRoutine);
-                _updateRoutine = null;
+                _ghostAI.HealthPercentChanged -= OnHealthChanged;
+                _ghostAI = null;
             }
         }
 
         private void LateUpdate()
         {
+            if (_pendingHide && healthBarCanvas != null && healthBarCanvas.gameObject.activeSelf)
+            {
+                healthBarCanvas.gameObject.SetActive(false);
+                _pendingHide = false;
+            }
+
             if (Camera.main == null)
             {
                 return;
@@ -103,43 +116,78 @@ namespace Ashlight.UI
                 Camera.main.transform.rotation * Vector3.up);
         }
 
-        private IEnumerator UpdateBar()
+        /// <summary>Syncs the bar fill to the bound ghost's current health ratio.</summary>
+        public void ResetHealthBar()
         {
-            WaitForSeconds wait = new WaitForSeconds(UpdateInterval);
+            RefreshFromGhost();
+        }
 
-            while (true)
+        /// <summary>Re-binds to the parent ghost and syncs the health bar display.</summary>
+        public void RefreshFromGhost()
+        {
+            _pendingHide = false;
+
+            if (_ghostAI != null)
             {
-                if (ghostAI == null || healthSlider == null || fillImage == null || healthBarCanvas == null)
-                {
-                    yield return wait;
-                    continue;
-                }
+                _ghostAI.HealthPercentChanged -= OnHealthChanged;
+            }
 
-                Debug.Log($"UpdateBar tick — health: {ghostAI.GhostHealthPercent:F2}, " +
-                          $"slider value: {healthSlider.value:F2}, " +
-                          $"canvas active: {healthBarCanvas.gameObject.activeSelf}, " +
-                          $"canvas pos: {healthBarCanvas.transform.position}");
+            _ghostAI = GetComponentInParent<GhostAIController>(true);
+            if (_ghostAI == null)
+            {
+                return;
+            }
 
-                float healthPercent = ghostAI.GhostHealthPercent;
+            _ghostAI.HealthPercentChanged += OnHealthChanged;
 
-                healthSlider.value = healthPercent;
-
-                if (healthPercent > 0.6f)
-                {
-                    fillImage.color = new Color(0.298f, 0.686f, 0.314f);
-                }
-                else if (healthPercent > 0.3f)
-                {
-                    fillImage.color = new Color(1f, 0.757f, 0.027f);
-                }
-                else
-                {
-                    fillImage.color = new Color(0.957f, 0.263f, 0.212f);
-                }
-
+            if (healthBarCanvas != null)
+            {
                 healthBarCanvas.gameObject.SetActive(true);
+            }
 
-                yield return wait;
+            ApplyHealthToBar(_ghostAI.GhostHealthPercent);
+        }
+
+        private void OnHealthChanged(float healthPercent)
+        {
+            Debug.Log($"{nameof(GhostHealthBar)} OnHealthChanged fired — health: {healthPercent:F2} on {name}.", this);
+
+            ApplyHealthToBar(healthPercent);
+
+            if (healthPercent <= 0f)
+            {
+                _pendingHide = true;
+            }
+        }
+
+        private void ApplyHealthToBar(float healthPercent)
+        {
+            if (healthSlider != null)
+            {
+                healthSlider.value = healthPercent;
+            }
+
+            ApplyFillColor(healthPercent);
+        }
+
+        private void ApplyFillColor(float healthPercent)
+        {
+            if (fillImage == null)
+            {
+                return;
+            }
+
+            if (healthPercent > 0.6f)
+            {
+                fillImage.color = FullHealthColor;
+            }
+            else if (healthPercent > 0.3f)
+            {
+                fillImage.color = MidHealthColor;
+            }
+            else
+            {
+                fillImage.color = LowHealthColor;
             }
         }
     }

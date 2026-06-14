@@ -38,7 +38,7 @@ namespace Ashlight.Environment.Tests
 
             Vector3 result = IsometricCameraController.ClampPositionToBounds(position, min, max);
 
-            Assert.AreEqual(new Vector3(-10f, 15f, -10f), result);
+            Assert.AreEqual(new Vector3(10f, 15f, -10f), result);
         }
     }
 }

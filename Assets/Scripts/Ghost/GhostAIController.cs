@@ -1,6 +1,7 @@
 using System.Collections;
 using Ashlight.Player;
 using Ashlight.Systems;
+using Ashlight.UI;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Events;
@@ -46,7 +47,6 @@ namespace Ashlight.Ghost
         [SerializeField] private Transform player;
         [SerializeField] private PlayerHealth playerHealth;
         [SerializeField] private Renderer ghostRenderer;
-        [SerializeField] private Transform ghostHealthBarFill;
         [SerializeField] private ParticleSystem deathParticles;
         [SerializeField] [Range(0f, 1f)] private float retreatLightThreshold = 0.7f;
 
@@ -92,6 +92,9 @@ namespace Ashlight.Ghost
 
         /// <summary>Invoked when the ghost begins retreating from torch light.</summary>
         public UnityEvent OnRetreat => _onRetreat;
+
+        /// <summary>Raised when ghost health percentage changes from 0 to 1.</summary>
+        public event System.Action<float> HealthPercentChanged;
 
         private void Awake()
         {
@@ -231,6 +234,14 @@ namespace Ashlight.Ghost
             _isPerishing = false;
             _debugLogTimer = DebugLogInterval;
             currentGhostHealth = maxGhostHealth;
+
+            GhostHealthBar healthBar = GetComponentInChildren<GhostHealthBar>(true);
+            if (healthBar != null)
+            {
+                healthBar.gameObject.SetActive(true);
+                healthBar.RefreshFromGhost();
+            }
+
             UpdateHealthBar();
 
             if (ghostRenderer != null)
@@ -426,19 +437,12 @@ namespace Ashlight.Ghost
             }
 
             _debugLogTimer = DebugLogInterval;
-            Debug.Log($"Ghost state: {_currentState}, Distance to player: {Vector3.Distance(transform.position, player.position)}");
+            // Debug.Log($"Ghost state: {_currentState}, Distance to player: {Vector3.Distance(transform.position, player.position)}");
         }
 
         private void UpdateHealthBar()
         {
-            if (ghostHealthBarFill == null)
-            {
-                return;
-            }
-
-            Vector3 scale = ghostHealthBarFill.localScale;
-            scale.x = GhostHealthPercent;
-            ghostHealthBarFill.localScale = scale;
+            HealthPercentChanged?.Invoke(GhostHealthPercent);
         }
 
         private void ChangeState(GhostState newState)

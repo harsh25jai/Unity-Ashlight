@@ -110,6 +110,16 @@ namespace Ashlight.Systems
             NotifyInventoryChanged();
         }
 
+        /// <summary>Sets the current Holy Water amount for save/load restoration.</summary>
+        /// <param name="amount">Amount clamped between 0 and max capacity.</param>
+        public void SetCurrent(float amount)
+        {
+            float previous = current;
+            current = Mathf.Clamp(amount, 0f, maxCapacity);
+            EvaluateLevelEvents(previous);
+            NotifyInventoryChanged();
+        }
+
         private void NotifyInventoryChanged()
         {
             _onAmountChanged?.Invoke();

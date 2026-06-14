@@ -1425,9 +1425,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a31ce3258771a4e5798ebbf23bc326ba, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Systems.SaveSystem
-  player: {fileID: 1714774886}
+  playerTransform: {fileID: 1714774886}
   playerHealth: {fileID: 1714774880}
   holyWaterInventory: {fileID: 11400000, guid: 613a3901407784ba3bb6d986ff4c0771, type: 2}
+  holyTorch: {fileID: 633351464}
+  dayNightCycle: {fileID: 1147873195}
+  _onSaveComplete:
+    m_PersistentCalls:
+      m_Calls: []
+  _onLoadComplete:
+    m_PersistentCalls:
+      m_Calls: []
+  _onSaveFailed:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!4 &655356908
 Transform:
   m_ObjectHideFlags: 0

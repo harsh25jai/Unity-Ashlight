@@ -107,6 +107,15 @@ namespace Ashlight.Player
             SyncTorchHealth();
         }
 
+        /// <summary>Sets current health directly for save/load restoration.</summary>
+        /// <param name="health">Health value clamped between 0 and max health.</param>
+        public void SetCurrentHealth(float health)
+        {
+            currentHealth = Mathf.Clamp(health, 0f, maxHealth);
+            _isDead = currentHealth <= 0f;
+            SyncTorchHealth();
+        }
+
         private void SyncTorchHealth()
         {
             if (holyTorch != null)

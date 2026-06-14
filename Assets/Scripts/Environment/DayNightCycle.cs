@@ -59,6 +59,9 @@ namespace Ashlight.Environment
         /// <summary>Gets how many full night cycles have completed.</summary>
         public int NightCycleCount => _nightCycleCount;
 
+        /// <summary>Gets elapsed time in the current day/night cycle.</summary>
+        public float CycleElapsed => _cycleElapsed;
+
         /// <summary>Invoked on every phase transition.</summary>
         public DayNightPhaseChangedEvent OnPhaseChanged => _onPhaseChanged;
 
@@ -138,6 +141,63 @@ namespace Ashlight.Environment
                 + _config.NightEarlyDuration
                 + CalculateNightDeepDuration(nightCycleCount, NightDeepBaseDuration, _config.NightGrowthMultiplier)
                 + _config.DawnDuration;
+        }
+
+        /// <summary>Resets the cycle to a fresh day start.</summary>
+        public void ResetCycle()
+        {
+            InitializeCycle();
+        }
+
+        /// <summary>Restores saved night progression and elapsed cycle time.</summary>
+        /// <param name="nightCycleCount">Completed night cycles.</param>
+        /// <param name="cycleElapsed">Elapsed seconds in the current cycle.</param>
+        public void LoadCycleState(int nightCycleCount, float cycleElapsed)
+        {
+            if (_config == null)
+            {
+                return;
+            }
+
+            _nightCycleCount = Mathf.Max(0, nightCycleCount);
+            float totalDuration = GetTotalCycleDuration(_nightCycleCount);
+            _cycleElapsed = totalDuration > 0f
+                ? Mathf.Clamp(cycleElapsed, 0f, totalDuration - 0.001f)
+                : 0f;
+
+            float remaining = _cycleElapsed;
+            _currentPhase = DayNightPhase.Day;
+            _phaseElapsed = 0f;
+
+            DayNightPhase[] phases =
+            {
+                DayNightPhase.Day,
+                DayNightPhase.Dusk,
+                DayNightPhase.Night_Early,
+                DayNightPhase.Night_Deep,
+                DayNightPhase.Dawn
+            };
+
+            foreach (DayNightPhase phase in phases)
+            {
+                float phaseDuration = GetPhaseDuration(phase, _nightCycleCount);
+                if (phaseDuration <= 0f)
+                {
+                    continue;
+                }
+
+                if (remaining < phaseDuration)
+                {
+                    _currentPhase = phase;
+                    _phaseElapsed = remaining;
+                    break;
+                }
+
+                remaining -= phaseDuration;
+            }
+
+            _onPhaseChanged?.Invoke(_currentPhase);
+            ApplyEnvironmentSettings();
         }
 
         private void InitializeCycle()

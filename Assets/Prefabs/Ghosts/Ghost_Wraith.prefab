@@ -327,6 +327,8 @@ MonoBehaviour:
   playerHealth: {fileID: 0}
   ghostRenderer: {fileID: 741621586557670080}
   deathParticles: {fileID: 0}
+  faithOrbPrefab: {fileID: 9187955109280207406, guid: 7e48bfb16ed2d4ef5b03cdc59c902947, type: 3}
+  faithOnDeath: 20
   retreatLightThreshold: 0.7
   maxGhostHealth: 100
   currentGhostHealth: 100

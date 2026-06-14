@@ -48,6 +48,8 @@ namespace Ashlight.Ghost
         [SerializeField] private PlayerHealth playerHealth;
         [SerializeField] private Renderer ghostRenderer;
         [SerializeField] private ParticleSystem deathParticles;
+        [SerializeField] private GameObject faithOrbPrefab;
+        [SerializeField] private int faithOnDeath = 10;
         [SerializeField] [Range(0f, 1f)] private float retreatLightThreshold = 0.7f;
 
         [Header("Ghost Health")]
@@ -543,6 +545,7 @@ namespace Ashlight.Ghost
             _currentState = GhostState.Perish;
             SetAgentStopped(true);
             ResetAgentPath();
+            SpawnFaithOrbOnDeath();
 
             if (deathParticles != null)
             {
@@ -561,6 +564,22 @@ namespace Ashlight.Ghost
             _isPerishing = false;
             _perishCoroutine = null;
             Deactivate();
+        }
+
+        /// <summary>Spawns a faith orb at the ghost's death position when configured.</summary>
+        protected virtual void SpawnFaithOrbOnDeath()
+        {
+            if (faithOrbPrefab == null)
+            {
+                return;
+            }
+
+            GameObject orbObject = Instantiate(faithOrbPrefab, transform.position, Quaternion.identity);
+            FaithOrb faithOrb = orbObject.GetComponent<FaithOrb>();
+            if (faithOrb != null)
+            {
+                faithOrb.Initialize(faithOnDeath);
+            }
         }
 
         private void ApplyGhostTypeVisuals()

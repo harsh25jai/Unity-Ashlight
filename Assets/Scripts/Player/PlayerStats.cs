@@ -17,6 +17,8 @@ namespace Ashlight.Player
         [SerializeField] private float carryCapacity = 100f;
 
         [System.NonSerialized] private Dictionary<string, float> _modifiers;
+        [System.NonSerialized] private float _fearResistanceBonus;
+        [System.NonSerialized] private float _carryCapacityMultiplier = 1f;
 
         /// <summary>Gets the base maximum health.</summary>
         public float MaxHealth => maxHealth;
@@ -49,16 +51,37 @@ namespace Ashlight.Player
         public float ModifiedRunSpeed => GetModifiedValue(runSpeed);
 
         /// <summary>Gets the modified fear resistance.</summary>
-        public float ModifiedFearResistance => GetModifiedValue(fearResistance);
+        public float ModifiedFearResistance => GetModifiedValue(fearResistance + _fearResistanceBonus);
 
         /// <summary>Gets the modified carry capacity.</summary>
-        public float ModifiedCarryCapacity => GetModifiedValue(carryCapacity);
+        public float ModifiedCarryCapacity => GetModifiedValue(carryCapacity) * _carryCapacityMultiplier;
 
         private Dictionary<string, float> Modifiers => _modifiers ??= new Dictionary<string, float>();
 
         private void OnDisable()
         {
             ClearModifiers();
+            _fearResistanceBonus = 0f;
+            _carryCapacityMultiplier = 1f;
+        }
+
+        /// <summary>Adds a permanent fear resistance bonus.</summary>
+        /// <param name="bonus">Bonus added to base fear resistance.</param>
+        public void AddFearResistance(float bonus)
+        {
+            _fearResistanceBonus += bonus;
+        }
+
+        /// <summary>Multiplies carry capacity by the given factor.</summary>
+        /// <param name="multiplier">Capacity multiplier.</param>
+        public void MultiplyCarryCapacity(float multiplier)
+        {
+            if (multiplier <= 0f)
+            {
+                return;
+            }
+
+            _carryCapacityMultiplier *= multiplier;
         }
 
         /// <summary>Adds or replaces a stat multiplier identified by a unique id.</summary>

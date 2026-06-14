@@ -120,6 +120,33 @@ namespace Ashlight.Systems
             NotifyInventoryChanged();
         }
 
+        /// <summary>Increases maximum Holy Water capacity.</summary>
+        /// <param name="amount">Capacity amount to add.</param>
+        public void AddMaxCapacity(float amount)
+        {
+            if (amount <= 0f)
+            {
+                return;
+            }
+
+            maxCapacity += amount;
+            NotifyInventoryChanged();
+        }
+
+        /// <summary>Multiplies maximum Holy Water capacity.</summary>
+        /// <param name="multiplier">Capacity multiplier.</param>
+        public void MultiplyMaxCapacity(float multiplier)
+        {
+            if (multiplier <= 0f)
+            {
+                return;
+            }
+
+            maxCapacity *= multiplier;
+            current = Mathf.Min(current, maxCapacity);
+            NotifyInventoryChanged();
+        }
+
         private void NotifyInventoryChanged()
         {
             _onAmountChanged?.Invoke();

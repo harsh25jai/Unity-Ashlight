@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72c42692f0ad148c2a0ac98d2a9dedb5, type: 3}
+  m_Name: UpgradeTree
+  m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Systems.UpgradeTree
+  allUpgrades:
+  - {fileID: 11400000, guid: 8a016fa0d95834ac4a9f12afc59933fc, type: 2}
+  - {fileID: 11400000, guid: d1ed03676cd004e638178fafae53d48a, type: 2}
+  - {fileID: 11400000, guid: 4b9d548efc5714678afd3863e91ee290, type: 2}
+  - {fileID: 11400000, guid: 90b4690771b5f41de84dbd5c4d8d5464, type: 2}
+  - {fileID: 11400000, guid: 2d70b1a66734542008f702ba46a6db15, type: 2}
+  - {fileID: 11400000, guid: e21263b0654d442ba85314371025cfe3, type: 2}
+  - {fileID: 11400000, guid: 2d3fdbd5dfd504ff081f2816d3b3fa9f, type: 2}
+  - {fileID: 11400000, guid: 44c519c56cd93460a9cef7687e00139e, type: 2}
+  - {fileID: 11400000, guid: 545fac4621af3497d920b1760906a168, type: 2}
+  startingFaith: 0

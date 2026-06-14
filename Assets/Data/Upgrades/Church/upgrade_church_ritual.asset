@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c7361a24f664453aa4813794d5ba8d0, type: 3}
+  m_Name: upgrade_church_ritual
+  m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Systems.UpgradeDefinition
+  upgradeID: church_ritual_1
+  upgradeName: Sacred Rituals
+  description: Ancient rites become available to you
+  icon: {fileID: 0}
+  faithCost: 150
+  category: 1
+  effect: 5
+  effectValue: 0
+  prerequisiteID: church_shrine_1

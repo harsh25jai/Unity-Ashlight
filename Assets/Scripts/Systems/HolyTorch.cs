@@ -45,6 +45,9 @@ namespace Ashlight.Systems
         private bool _lowFuelEventFired;
         private bool _isExtinguished = true;
         private float _flickerIntensityOffset;
+        private float _baseMaxRange = PointMaxRange;
+        private float _burnRateModifier = 1f;
+        private bool _holyPulseUnlocked;
         private Coroutine _drainCoroutine;
         private Coroutine _flickerCoroutine;
 
@@ -70,12 +73,15 @@ namespace Ashlight.Systems
                     return 0f;
                 }
 
-                return PointMaxRange * FuelPercent * healthModifier;
+                return _baseMaxRange * FuelPercent * healthModifier;
             }
         }
 
         /// <summary>Gets whether the torch is in accelerated combat drain mode.</summary>
         public bool IsCombatMode => _combatMode;
+
+        /// <summary>Gets whether the holy pulse ability is unlocked.</summary>
+        public bool HolyPulseUnlocked => _holyPulseUnlocked;
 
         /// <summary>Invoked when the torch becomes lit.</summary>
         public UnityEvent OnTorchLit => _onTorchLit;
@@ -184,6 +190,28 @@ namespace Ashlight.Systems
             fearMultiplier = Mathf.Clamp01(fear);
         }
 
+        /// <summary>Adds a permanent bonus to maximum torch light range.</summary>
+        /// <param name="bonus">Range bonus in world units.</param>
+        public void AddRadiusBonus(float bonus)
+        {
+            _baseMaxRange += bonus;
+            ApplyLightState();
+        }
+
+        /// <summary>Adds a fuel burn-rate modifier. Lower values reduce consumption.</summary>
+        /// <param name="modifier">Modifier added to the current burn rate.</param>
+        public void AddBurnRateModifier(float modifier)
+        {
+            _burnRateModifier = Mathf.Max(0.1f, _burnRateModifier + modifier);
+        }
+
+        /// <summary>Unlocks the emergency holy pulse ability.</summary>
+        public void UnlockHolyPulse()
+        {
+            _holyPulseUnlocked = true;
+            Debug.Log("Holy Pulse unlocked");
+        }
+
         /// <summary>Adds fuel and re-lights the torch when previously extinguished.</summary>
         /// <param name="amount">Fuel amount to add.</param>
         public void Refuel(float amount)
@@ -274,7 +302,7 @@ namespace Ashlight.Systems
             }
 
             float previousFuel = _currentFuel;
-            _currentFuel = Mathf.Max(0f, _currentFuel - amount);
+            _currentFuel = Mathf.Max(0f, _currentFuel - amount * _burnRateModifier);
 
             if (!_lowFuelEventFired && previousFuel / maxFuel > LowFuelThreshold && FuelPercent <= LowFuelThreshold)
             {
@@ -340,7 +368,7 @@ namespace Ashlight.Systems
             float fuelPercent = FuelPercent;
 
             float pointEffectiveIntensity = PointMaxIntensity * fuelPercent * healthModifier;
-            float pointEffectiveRange = PointMaxRange * fuelPercent * healthModifier;
+            float pointEffectiveRange = _baseMaxRange * fuelPercent * healthModifier;
 
             pointLight.enabled = true;
             pointLight.range = Mathf.Max(PointMinRange, pointEffectiveRange);

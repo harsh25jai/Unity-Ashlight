@@ -99,6 +99,12 @@ namespace Ashlight.Player
         /// <summary>Invoked when stamina rises above zero after depletion.</summary>
         public UnityEvent OnStaminaRecovered => _onStaminaRecovered;
 
+        /// <summary>Re-reads movement stats from the assigned player stats asset.</summary>
+        public void RefreshStatsFromScriptableObject()
+        {
+            _currentStamina = Mathf.Min(_currentStamina, GetMaxStamina());
+        }
+
         private void Awake()
         {
             _characterController = GetComponent<CharacterController>();

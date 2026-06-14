@@ -128,17 +128,17 @@ namespace Ashlight.Player
 
         private void OnEnable()
         {
-            if (_playerActionMap != null)
+            if (_inputActions != null)
             {
-                _playerActionMap.Enable();
+                _inputActions.Enable();
             }
         }
 
         private void OnDisable()
         {
-            if (_playerActionMap != null)
+            if (_inputActions != null)
             {
-                _playerActionMap.Disable();
+                _inputActions.Disable();
             }
         }
 

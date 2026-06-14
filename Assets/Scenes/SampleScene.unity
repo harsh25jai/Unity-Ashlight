@@ -2270,7 +2270,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9533325f83e7d42b38b2785530424cf3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Ghost.GhostSpawnManager
-  ghostPrefab: {fileID: 1943888514108239003, guid: e363b614bdfea48ab8b31c10c061afe5, type: 3}
+  ghostSpawnEntries:
+  - ghostName: Ghost_Elder
+    prefab: {fileID: 2464706985789593987, guid: c5ef0ddc7007f4dc0a3e43036ed7cccd, type: 3}
+    poolSize: 1
+    spawnWeight: 0.5
+  - ghostName: Ghost_Hollow
+    prefab: {fileID: -7153949938934901111, guid: b11b86f13fd4e42b0aa5cedcd617535c, type: 3}
+    poolSize: 2
+    spawnWeight: 1
+  - ghostName: Ghost_Stalker
+    prefab: {fileID: 3979628581864549928, guid: 9b6914aa3c9b54dea9fa993d3209ae6e, type: 3}
+    poolSize: 3
+    spawnWeight: 2
+  - ghostName: Ghost_Wanderer
+    prefab: {fileID: 1943888514108239003, guid: e363b614bdfea48ab8b31c10c061afe5, type: 3}
+    poolSize: 5
+    spawnWeight: 3
+  - ghostName: Ghost_Wraith
+    prefab: {fileID: -5283244756298814926, guid: e49a401c11216477495ef84e52dd1dfc, type: 3}
+    poolSize: 3
+    spawnWeight: 2
   spawnPoints:
   - point: {fileID: 348680352}
     weight: 0

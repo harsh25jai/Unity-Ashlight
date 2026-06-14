@@ -39,6 +39,7 @@ namespace Ashlight.Systems
         private float _currentFear;
         private float _fearTarget;
         private float _cameraShakeCooldownTimer;
+        private float _minimumFearFloor;
         private Coroutine _ghostScanRoutine;
 
         /// <summary>Gets the smoothed fear level from 0 to 1.</summary>
@@ -46,6 +47,19 @@ namespace Ashlight.Systems
 
         /// <summary>Invoked every ghost scan interval with the current fear value.</summary>
         public UnityEvent<float> OnFearChanged => _onFearChanged;
+
+        /// <summary>Sets a minimum fear floor applied every frame until cleared.</summary>
+        /// <param name="minimumFear">Minimum fear from 0 to 1.</param>
+        public void SetMinimumFearFloor(float minimumFear)
+        {
+            _minimumFearFloor = Mathf.Clamp01(minimumFear);
+        }
+
+        /// <summary>Clears any externally enforced minimum fear floor.</summary>
+        public void ClearMinimumFearFloor()
+        {
+            _minimumFearFloor = 0f;
+        }
 
         private void Awake()
         {
@@ -141,6 +155,7 @@ namespace Ashlight.Systems
         private void Update()
         {
             _currentFear = Mathf.Lerp(_currentFear, _fearTarget, FearLerpSpeed * Time.deltaTime);
+            _currentFear = Mathf.Max(_currentFear, _minimumFearFloor);
             ApplyFearEffects(_currentFear);
             UpdateCameraShake(_currentFear);
         }

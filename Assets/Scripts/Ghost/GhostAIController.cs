@@ -30,16 +30,16 @@ namespace Ashlight.Ghost
     [RequireComponent(typeof(NavMeshAgent))]
     public class GhostAIController : MonoBehaviour
     {
-        private const float IdleMinDuration = 3f;
-        private const float IdleMaxDuration = 8f;
-        private const float WanderDestinationRadius = 10f;
-        private const float StalkFollowDistance = 6f;
-        private const float RetreatDistanceFromPlayer = 15f;
-        private const float PlayerAttackCooldown = 1f;
-        private const float DebugLogInterval = 2f;
-        private const float RechargeCompleteThreshold = 0.7f;
-        private const float PerishDelay = 1.5f;
-        private const float RechargePulseSpeed = 4f;
+        protected const float IdleMinDuration = 3f;
+        protected const float IdleMaxDuration = 8f;
+        protected const float WanderDestinationRadius = 10f;
+        protected const float StalkFollowDistance = 6f;
+        protected const float RetreatDistanceFromPlayer = 15f;
+        protected const float PlayerAttackCooldown = 1f;
+        protected const float DebugLogInterval = 2f;
+        protected const float RechargeCompleteThreshold = 0.7f;
+        protected const float PerishDelay = 1.5f;
+        protected const float RechargePulseSpeed = 4f;
 
         [SerializeField] private GhostTypeDefinition ghostType;
         [SerializeField] private GhostPerceptionSystem perception;
@@ -96,7 +96,52 @@ namespace Ashlight.Ghost
         /// <summary>Raised when ghost health percentage changes from 0 to 1.</summary>
         public event System.Action<float> HealthPercentChanged;
 
-        private void Awake()
+        /// <summary>Gets the NavMesh agent used for movement.</summary>
+        protected NavMeshAgent Agent => _navMeshAgent;
+
+        /// <summary>Gets the tracked player transform.</summary>
+        protected Transform PlayerTransform => player;
+
+        /// <summary>Gets the ghost perception system.</summary>
+        protected GhostPerceptionSystem PerceptionSystem => perception;
+
+        /// <summary>Gets the ghost renderer.</summary>
+        protected Renderer GhostRenderer => ghostRenderer;
+
+        /// <summary>Gets the player health component.</summary>
+        protected PlayerHealth PlayerHealthComponent => playerHealth;
+
+        /// <summary>Gets the torch interaction component.</summary>
+        protected GhostTorchInteraction TorchInteraction => ghostTorchInteraction;
+
+        /// <summary>Gets the ghost base renderer color.</summary>
+        protected Color BaseRendererColor => _baseRendererColor;
+
+        /// <summary>Gets whether the ghost is currently perishing.</summary>
+        protected bool IsPerishing => _isPerishing;
+
+        /// <summary>Gets the health fraction that triggers retreat.</summary>
+        protected virtual float RetreatHealthThreshold => rechargeThreshold;
+
+        /// <summary>Gets the retreat distance from the player.</summary>
+        protected virtual float RetreatDistance => RetreatDistanceFromPlayer;
+
+        /// <summary>Gets or sets current ghost health.</summary>
+        protected float CurrentGhostHealth
+        {
+            get => currentGhostHealth;
+            set
+            {
+                currentGhostHealth = Mathf.Clamp(value, 0f, maxGhostHealth);
+                UpdateHealthBar();
+            }
+        }
+
+        /// <summary>Gets maximum ghost health.</summary>
+        protected float MaxGhostHealth => maxGhostHealth;
+
+        /// <summary>Initializes required components and default ghost state.</summary>
+        protected virtual void Awake()
         {
             _navMeshAgent = GetComponent<NavMeshAgent>();
 
@@ -175,7 +220,8 @@ namespace Ashlight.Ghost
             }
         }
 
-        private void Update()
+        /// <summary>Updates ghost AI while active.</summary>
+        protected virtual void Update()
         {
             if (!_isActive || ghostType == null || perception == null || player == null || _isPerishing)
             {
@@ -223,7 +269,7 @@ namespace Ashlight.Ghost
         /// Starts AI behavior after the spawn manager positions and warps the agent.
         /// </summary>
         /// <param name="playerTransform">Player transform to track.</param>
-        public void Activate(Transform playerTransform)
+        public virtual void Activate(Transform playerTransform)
         {
             if (playerTransform != null)
             {
@@ -261,7 +307,7 @@ namespace Ashlight.Ghost
         /// <summary>
         /// Deactivates this ghost and returns it to the spawn pool.
         /// </summary>
-        public void Deactivate()
+        public virtual void Deactivate()
         {
             _isActive = false;
             _isPerishing = false;
@@ -291,7 +337,7 @@ namespace Ashlight.Ghost
         }
 
         /// <summary>Forces this ghost to retreat immediately.</summary>
-        public void ForceRetreat()
+        public virtual void ForceRetreat()
         {
             if (!_isActive || _isPerishing)
             {
@@ -303,7 +349,7 @@ namespace Ashlight.Ghost
 
         /// <summary>Applies torch damage to this ghost.</summary>
         /// <param name="damage">Damage amount.</param>
-        public void TakeTorchDamage(float damage)
+        public virtual void TakeTorchDamage(float damage)
         {
             if (!_isActive || _isPerishing || damage <= 0f)
             {
@@ -315,11 +361,11 @@ namespace Ashlight.Ghost
 
             if (currentGhostHealth <= 0f)
             {
-                Perish();
+                OnHealthDepleted();
                 return;
             }
 
-            if (GhostHealthPercent < rechargeThreshold &&
+            if (GhostHealthPercent < RetreatHealthThreshold &&
                 _currentState != GhostState.Retreat &&
                 _currentState != GhostState.Recharge)
             {
@@ -336,6 +382,149 @@ namespace Ashlight.Ghost
         public static bool ShouldRetreatFromLight(float lightLevel, float threshold)
         {
             return lightLevel > threshold;
+        }
+
+        /// <summary>Handles ghost health reaching zero.</summary>
+        protected virtual void OnHealthDepleted()
+        {
+            Perish();
+        }
+
+        /// <summary>Determines whether torch light should force a retreat.</summary>
+        /// <returns>True when the ghost should retreat from torch light.</returns>
+        protected virtual bool ShouldRetreat()
+        {
+            if (ghostTorchInteraction == null || !ghostTorchInteraction.IsInTorchRange)
+            {
+                return false;
+            }
+
+            float lightLevel = perception.GetLightLevelAtPosition(transform.position);
+            return ShouldRetreatFromLight(lightLevel, retreatLightThreshold);
+        }
+
+        /// <summary>Calculates the current perception level for this ghost.</summary>
+        /// <returns>Perception level relative to the player.</returns>
+        protected virtual PerceptionLevel CalculateCurrentPerception()
+        {
+            return perception.CalculatePerception(
+                transform,
+                player,
+                GetPlayerTorchFuelPercent());
+        }
+
+        /// <summary>Applies perception-driven state transitions.</summary>
+        /// <param name="perceptionLevel">Current perception level.</param>
+        protected virtual void ApplyPerceptionTransitions(PerceptionLevel perceptionLevel)
+        {
+            if (_currentState == GhostState.Retreat ||
+                _currentState == GhostState.Recharge ||
+                _currentState == GhostState.Attack ||
+                _currentState == GhostState.Perish)
+            {
+                return;
+            }
+
+            if (perceptionLevel == PerceptionLevel.Detected &&
+                (_currentState == GhostState.Wander || _currentState == GhostState.Stalk))
+            {
+                ChangeState(GhostState.Chase);
+                return;
+            }
+
+            if (perceptionLevel == PerceptionLevel.Suspicious && _currentState == GhostState.Wander)
+            {
+                ChangeState(GhostState.Stalk);
+            }
+        }
+
+        /// <summary>Transitions the ghost to a new AI state.</summary>
+        /// <param name="newState">Target state.</param>
+        protected void ChangeState(GhostState newState)
+        {
+            if (_currentState == newState)
+            {
+                return;
+            }
+
+            ExitState(_currentState);
+            _currentState = newState;
+            EnterState(_currentState);
+        }
+
+        /// <summary>Gets the player's current torch fuel percentage.</summary>
+        /// <returns>Torch fuel from 0 to 1.</returns>
+        protected float GetPlayerTorchFuelPercent()
+        {
+            if (player == null)
+            {
+                return 0f;
+            }
+
+            HolyTorch torch = player.GetComponentInChildren<HolyTorch>();
+            return torch != null ? torch.FuelPercent : 0f;
+        }
+
+        /// <summary>Sets the NavMesh agent movement speed.</summary>
+        /// <param name="speed">Speed in units per second.</param>
+        protected void SetAgentSpeed(float speed)
+        {
+            if (Agent != null && Agent.isOnNavMesh)
+            {
+                Agent.speed = speed;
+            }
+        }
+
+        /// <summary>Stops or resumes NavMesh agent movement.</summary>
+        /// <param name="stopped">Whether the agent should stop.</param>
+        protected void SetAgentStopped(bool stopped)
+        {
+            if (Agent != null && Agent.isOnNavMesh)
+            {
+                Agent.isStopped = stopped;
+            }
+        }
+
+        /// <summary>Sets the NavMesh agent destination when on a valid mesh.</summary>
+        /// <param name="destination">World-space destination.</param>
+        protected void SetAgentDestination(Vector3 destination)
+        {
+            if (Agent != null && Agent.isOnNavMesh)
+            {
+                Agent.SetDestination(destination);
+            }
+        }
+
+        /// <summary>Resets the NavMesh agent path when on a valid mesh.</summary>
+        protected void ResetAgentPath()
+        {
+            if (Agent != null && Agent.isOnNavMesh)
+            {
+                Agent.ResetPath();
+            }
+        }
+
+        /// <summary>Warps the NavMesh agent to a valid position.</summary>
+        /// <param name="position">Target world position.</param>
+        /// <returns>True when the warp succeeded.</returns>
+        protected bool WarpAgent(Vector3 position)
+        {
+            if (Agent == null)
+            {
+                return false;
+            }
+
+            return Agent.Warp(position);
+        }
+
+        /// <summary>Samples the NavMesh near a target position.</summary>
+        /// <param name="targetPosition">Desired position.</param>
+        /// <param name="hit">Sampled NavMesh hit.</param>
+        /// <param name="maxDistance">Maximum sample distance.</param>
+        /// <returns>True when a valid NavMesh position was found.</returns>
+        protected static bool TrySampleNavMeshPosition(Vector3 targetPosition, out NavMeshHit hit, float maxDistance)
+        {
+            return NavMesh.SamplePosition(targetPosition, out hit, maxDistance, NavMesh.AllAreas);
         }
 
         private void Perish()
@@ -388,46 +577,6 @@ namespace Ashlight.Ghost
             }
         }
 
-        private float GetPlayerTorchFuelPercent()
-        {
-            HolyTorch torch = player.GetComponentInChildren<HolyTorch>();
-            return torch != null ? torch.FuelPercent : 0f;
-        }
-
-        private bool ShouldRetreat()
-        {
-            if (ghostTorchInteraction == null || !ghostTorchInteraction.IsInTorchRange)
-            {
-                return false;
-            }
-
-            float lightLevel = perception.GetLightLevelAtPosition(transform.position);
-            return ShouldRetreatFromLight(lightLevel, retreatLightThreshold);
-        }
-
-        private void ApplyPerceptionTransitions(PerceptionLevel perceptionLevel)
-        {
-            if (_currentState == GhostState.Retreat ||
-                _currentState == GhostState.Recharge ||
-                _currentState == GhostState.Attack ||
-                _currentState == GhostState.Perish)
-            {
-                return;
-            }
-
-            if (perceptionLevel == PerceptionLevel.Detected &&
-                (_currentState == GhostState.Wander || _currentState == GhostState.Stalk))
-            {
-                ChangeState(GhostState.Chase);
-                return;
-            }
-
-            if (perceptionLevel == PerceptionLevel.Suspicious && _currentState == GhostState.Wander)
-            {
-                ChangeState(GhostState.Stalk);
-            }
-        }
-
         private void UpdateDebugLogTimer()
         {
             _debugLogTimer -= Time.deltaTime;
@@ -437,24 +586,11 @@ namespace Ashlight.Ghost
             }
 
             _debugLogTimer = DebugLogInterval;
-            // Debug.Log($"Ghost state: {_currentState}, Distance to player: {Vector3.Distance(transform.position, player.position)}");
         }
 
         private void UpdateHealthBar()
         {
             HealthPercentChanged?.Invoke(GhostHealthPercent);
-        }
-
-        private void ChangeState(GhostState newState)
-        {
-            if (_currentState == newState)
-            {
-                return;
-            }
-
-            ExitState(_currentState);
-            _currentState = newState;
-            EnterState(_currentState);
         }
 
         private void EnterState(GhostState state)
@@ -513,13 +649,15 @@ namespace Ashlight.Ghost
             }
         }
 
-        private void EnterIdle()
+        /// <summary>Enters the idle state.</summary>
+        protected virtual void EnterIdle()
         {
             SetAgentStopped(true);
             _stateTimer = Random.Range(IdleMinDuration, IdleMaxDuration);
         }
 
-        private void UpdateIdle()
+        /// <summary>Updates idle behavior.</summary>
+        protected virtual void UpdateIdle()
         {
             _stateTimer -= Time.deltaTime;
             if (_stateTimer <= 0f)
@@ -528,18 +666,16 @@ namespace Ashlight.Ghost
             }
         }
 
-        private void ExitIdle()
+        /// <summary>Exits the idle state.</summary>
+        protected virtual void ExitIdle()
         {
         }
 
-        private void EnterWander()
+        /// <summary>Enters the wander state.</summary>
+        protected virtual void EnterWander()
         {
             SetAgentStopped(false);
-
-            if (_navMeshAgent != null)
-            {
-                _navMeshAgent.speed = ghostType.MoveSpeed;
-            }
+            SetAgentSpeed(ghostType.MoveSpeed);
 
             if (!HasActiveWanderDestination())
             {
@@ -547,13 +683,10 @@ namespace Ashlight.Ghost
             }
         }
 
-        private void UpdateWander()
+        /// <summary>Updates wander behavior.</summary>
+        protected virtual void UpdateWander()
         {
-            PerceptionLevel perceptionLevel = perception.CalculatePerception(
-                transform,
-                player,
-                GetPlayerTorchFuelPercent());
-            ApplyPerceptionTransitions(perceptionLevel);
+            ApplyPerceptionTransitions(CalculateCurrentPerception());
 
             if (!HasActiveWanderDestination())
             {
@@ -561,56 +694,50 @@ namespace Ashlight.Ghost
                 return;
             }
 
-            if (_navMeshAgent != null && _navMeshAgent.isOnNavMesh &&
-                !_navMeshAgent.pathPending &&
-                _navMeshAgent.remainingDistance <= _navMeshAgent.stoppingDistance)
+            if (Agent != null && Agent.isOnNavMesh &&
+                !Agent.pathPending &&
+                Agent.remainingDistance <= Agent.stoppingDistance)
             {
                 SetRandomWanderDestination();
             }
         }
 
-        private void ExitWander()
+        /// <summary>Exits the wander state.</summary>
+        protected virtual void ExitWander()
         {
         }
 
-        private void EnterStalk()
+        /// <summary>Enters the stalk state.</summary>
+        protected virtual void EnterStalk()
         {
             SetAgentStopped(false);
-
-            if (_navMeshAgent != null)
-            {
-                _navMeshAgent.speed = ghostType.MoveSpeed * 0.75f;
-            }
+            SetAgentSpeed(ghostType.MoveSpeed * 0.75f);
         }
 
-        private void UpdateStalk()
+        /// <summary>Updates stalk behavior.</summary>
+        protected virtual void UpdateStalk()
         {
-            PerceptionLevel perceptionLevel = perception.CalculatePerception(
-                transform,
-                player,
-                GetPlayerTorchFuelPercent());
-            ApplyPerceptionTransitions(perceptionLevel);
+            ApplyPerceptionTransitions(CalculateCurrentPerception());
 
             Vector3 offset = (transform.position - player.position).normalized * StalkFollowDistance;
             Vector3 stalkPoint = player.position + offset;
             SetAgentDestination(stalkPoint);
         }
 
-        private void ExitStalk()
+        /// <summary>Exits the stalk state.</summary>
+        protected virtual void ExitStalk()
         {
         }
 
-        private void EnterChase()
+        /// <summary>Enters the chase state.</summary>
+        protected virtual void EnterChase()
         {
             SetAgentStopped(false);
-
-            if (_navMeshAgent != null)
-            {
-                _navMeshAgent.speed = ghostType.MoveSpeed;
-            }
+            SetAgentSpeed(ghostType.MoveSpeed);
         }
 
-        private void UpdateChase()
+        /// <summary>Updates chase behavior.</summary>
+        protected virtual void UpdateChase()
         {
             SetAgentDestination(player.position);
 
@@ -621,16 +748,19 @@ namespace Ashlight.Ghost
             }
         }
 
-        private void ExitChase()
+        /// <summary>Exits the chase state.</summary>
+        protected virtual void ExitChase()
         {
         }
 
-        private void EnterAttack()
+        /// <summary>Enters the attack state.</summary>
+        protected virtual void EnterAttack()
         {
             SetAgentStopped(true);
         }
 
-        private void UpdateAttack()
+        /// <summary>Updates attack behavior.</summary>
+        protected virtual void UpdateAttack()
         {
             float distanceToPlayer = Vector3.Distance(transform.position, player.position);
             if (distanceToPlayer > ghostType.AttackRange * 1.25f)
@@ -659,25 +789,23 @@ namespace Ashlight.Ghost
             }
         }
 
-        private void ExitAttack()
+        /// <summary>Exits the attack state.</summary>
+        protected virtual void ExitAttack()
         {
             SetAgentStopped(false);
         }
 
-        private void EnterRetreat()
+        /// <summary>Enters the retreat state.</summary>
+        protected virtual void EnterRetreat()
         {
             _onRetreat?.Invoke();
             SetAgentStopped(false);
-
-            if (_navMeshAgent != null)
-            {
-                _navMeshAgent.speed = ghostType.RetreatSpeed;
-            }
+            SetAgentSpeed(ghostType.RetreatSpeed);
 
             Vector3 awayDirection = (transform.position - player.position).normalized;
-            _retreatDestination = transform.position + awayDirection * RetreatDistanceFromPlayer;
+            _retreatDestination = transform.position + awayDirection * RetreatDistance;
 
-            if (NavMesh.SamplePosition(_retreatDestination, out NavMeshHit hit, 6f, NavMesh.AllAreas))
+            if (TrySampleNavMeshPosition(_retreatDestination, out NavMeshHit hit, 6f))
             {
                 _retreatDestination = hit.position;
             }
@@ -685,25 +813,26 @@ namespace Ashlight.Ghost
             SetAgentDestination(_retreatDestination);
         }
 
-        private void UpdateRetreat()
+        /// <summary>Updates retreat behavior.</summary>
+        protected virtual void UpdateRetreat()
         {
             float distanceFromPlayer = Vector3.Distance(transform.position, player.position);
-            if (distanceFromPlayer < RetreatDistanceFromPlayer)
+            if (distanceFromPlayer < RetreatDistance)
             {
                 return;
             }
 
-            bool reachedDestination = _navMeshAgent == null ||
-                                      !_navMeshAgent.isOnNavMesh ||
-                                      (!_navMeshAgent.pathPending &&
-                                       _navMeshAgent.remainingDistance <= _navMeshAgent.stoppingDistance);
+            bool reachedDestination = Agent == null ||
+                                      !Agent.isOnNavMesh ||
+                                      (!Agent.pathPending &&
+                                       Agent.remainingDistance <= Agent.stoppingDistance);
 
             if (!reachedDestination)
             {
                 return;
             }
 
-            if (GhostHealthPercent < rechargeThreshold)
+            if (GhostHealthPercent < RetreatHealthThreshold)
             {
                 ChangeState(GhostState.Recharge);
             }
@@ -713,20 +842,20 @@ namespace Ashlight.Ghost
             }
         }
 
-        private void ExitRetreat()
+        /// <summary>Exits the retreat state.</summary>
+        protected virtual void ExitRetreat()
         {
-            if (_navMeshAgent != null)
-            {
-                _navMeshAgent.speed = ghostType.MoveSpeed;
-            }
+            SetAgentSpeed(ghostType.MoveSpeed);
         }
 
-        private void EnterRecharge()
+        /// <summary>Enters the recharge state.</summary>
+        protected virtual void EnterRecharge()
         {
             SetAgentStopped(true);
         }
 
-        private void UpdateRecharge()
+        /// <summary>Updates recharge behavior.</summary>
+        protected virtual void UpdateRecharge()
         {
             currentGhostHealth = Mathf.Min(maxGhostHealth, currentGhostHealth + rechargeRate * Time.deltaTime);
             UpdateHealthBar();
@@ -738,7 +867,8 @@ namespace Ashlight.Ghost
             }
         }
 
-        private void ExitRecharge()
+        /// <summary>Exits the recharge state.</summary>
+        protected virtual void ExitRecharge()
         {
             if (ghostRenderer != null)
             {
@@ -746,7 +876,8 @@ namespace Ashlight.Ghost
             }
         }
 
-        private void ApplyRechargePulse()
+        /// <summary>Applies a pulsing recharge visual.</summary>
+        protected void ApplyRechargePulse()
         {
             if (ghostRenderer == null)
             {
@@ -757,51 +888,30 @@ namespace Ashlight.Ghost
             ghostRenderer.material.color = _baseRendererColor * pulse;
         }
 
-        private bool HasActiveWanderDestination()
+        /// <summary>Gets whether the agent is traveling to a wander destination.</summary>
+        /// <returns>True when a wander path is active.</returns>
+        protected bool HasActiveWanderDestination()
         {
-            if (_navMeshAgent == null || !_navMeshAgent.isOnNavMesh)
+            if (Agent == null || !Agent.isOnNavMesh)
             {
                 return false;
             }
 
-            return _navMeshAgent.hasPath &&
-                   !_navMeshAgent.pathPending &&
-                   _navMeshAgent.remainingDistance > _navMeshAgent.stoppingDistance;
+            return Agent.hasPath &&
+                   !Agent.pathPending &&
+                   Agent.remainingDistance > Agent.stoppingDistance;
         }
 
-        private void SetRandomWanderDestination()
+        /// <summary>Sets a random wander destination on the NavMesh.</summary>
+        protected void SetRandomWanderDestination()
         {
             Vector3 randomDirection = Random.insideUnitSphere * WanderDestinationRadius;
             randomDirection += transform.position;
             randomDirection.y = transform.position.y;
 
-            if (NavMesh.SamplePosition(randomDirection, out NavMeshHit hit, WanderDestinationRadius, NavMesh.AllAreas))
+            if (TrySampleNavMeshPosition(randomDirection, out NavMeshHit hit, WanderDestinationRadius))
             {
                 SetAgentDestination(hit.position);
-            }
-        }
-
-        private void SetAgentStopped(bool stopped)
-        {
-            if (_navMeshAgent != null && _navMeshAgent.isOnNavMesh)
-            {
-                _navMeshAgent.isStopped = stopped;
-            }
-        }
-
-        private void SetAgentDestination(Vector3 destination)
-        {
-            if (_navMeshAgent != null && _navMeshAgent.isOnNavMesh)
-            {
-                _navMeshAgent.SetDestination(destination);
-            }
-        }
-
-        private void ResetAgentPath()
-        {
-            if (_navMeshAgent != null && _navMeshAgent.isOnNavMesh)
-            {
-                _navMeshAgent.ResetPath();
             }
         }
     }

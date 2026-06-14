@@ -4,6 +4,7 @@ using Ashlight.Environment;
 using Ashlight.Systems;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.InputSystem;
 
 namespace Ashlight.Ghost
 {
@@ -24,33 +25,67 @@ namespace Ashlight.Ghost
     }
 
     /// <summary>
+    /// Pool and spawn configuration for a single ghost archetype.
+    /// </summary>
+    [System.Serializable]
+    public class GhostSpawnEntry
+    {
+        public string ghostName;
+        public GhostAIController prefab;
+        public int poolSize = 3;
+        public float spawnWeight = 1f;
+    }
+
+    /// <summary>
     /// Pools ghost instances and spawns them based on day/night phase limits.
     /// </summary>
     [DisallowMultipleComponent]
     public class GhostSpawnManager : MonoBehaviour
     {
-        private const int PoolSize = 10;
         private const float SpawnIntervalMin = 30f;
         private const float SpawnIntervalMax = 60f;
 
-        [SerializeField] private GhostAIController ghostPrefab;
+        [SerializeField] private List<GhostSpawnEntry> ghostSpawnEntries = new List<GhostSpawnEntry>();
         [SerializeField] private List<WeightedSpawnPoint> spawnPoints = new List<WeightedSpawnPoint>();
         [SerializeField] private DayNightCycle dayNightCycle;
         [SerializeField] private Transform player;
         [SerializeField] private HolyTorch playerTorch;
 
-        private readonly List<GhostAIController> _pool = new List<GhostAIController>();
+        private readonly Dictionary<string, Queue<GhostAIController>> _pools =
+            new Dictionary<string, Queue<GhostAIController>>();
+
+        private readonly Dictionary<GhostAIController, string> _ghostPoolKeys =
+            new Dictionary<GhostAIController, string>();
+
         private readonly List<GhostAIController> _activeGhosts = new List<GhostAIController>();
         private readonly List<GhostAIController> _activeGhostsQuery = new List<GhostAIController>();
+
         private int _maxActiveGhosts = 3;
         private Coroutine _spawnCoroutine;
         private BoxCollider _spawnExclusionZone;
 
         private void Awake()
         {
-            if (ghostPrefab == null)
+            if (ghostSpawnEntries == null || ghostSpawnEntries.Count == 0)
             {
-                Debug.LogError($"{nameof(GhostSpawnManager)} requires a {nameof(GhostAIController)} prefab.", this);
+                Debug.LogError($"{nameof(GhostSpawnManager)} requires at least one {nameof(GhostSpawnEntry)}.", this);
+                enabled = false;
+                return;
+            }
+
+            bool hasValidEntry = false;
+            foreach (GhostSpawnEntry entry in ghostSpawnEntries)
+            {
+                if (entry != null && entry.prefab != null)
+                {
+                    hasValidEntry = true;
+                    break;
+                }
+            }
+
+            if (!hasValidEntry)
+            {
+                Debug.LogError($"{nameof(GhostSpawnManager)} requires at least one valid ghost prefab.", this);
                 enabled = false;
                 return;
             }
@@ -108,6 +143,39 @@ namespace Ashlight.Ghost
             }
         }
 
+        private void Update()
+        {
+            if (Keyboard.current == null)
+            {
+                return;
+            }
+
+            if (Keyboard.current.digit1Key.wasPressedThisFrame)
+            {
+                SpawnSpecific(0);
+            }
+
+            if (Keyboard.current.digit2Key.wasPressedThisFrame)
+            {
+                SpawnSpecific(1);
+            }
+
+            if (Keyboard.current.digit3Key.wasPressedThisFrame)
+            {
+                SpawnSpecific(2);
+            }
+
+            if (Keyboard.current.digit4Key.wasPressedThisFrame)
+            {
+                SpawnSpecific(3);
+            }
+
+            if (Keyboard.current.digit5Key.wasPressedThisFrame)
+            {
+                SpawnSpecific(4);
+            }
+        }
+
         /// <summary>Blocks ghost spawns inside the given trigger volume.</summary>
         /// <param name="exclusionZone">Church or safe-zone collider.</param>
         public void SetSpawnExclusionZone(BoxCollider exclusionZone)
@@ -142,7 +210,7 @@ namespace Ashlight.Ghost
         }
 
         /// <summary>
-        /// Spawns a ghost when pool capacity and phase limits allow.
+        /// Spawns a random ghost type weighted by <see cref="GhostSpawnEntry.spawnWeight"/>.
         /// </summary>
         public void SpawnGhost()
         {
@@ -151,36 +219,40 @@ namespace Ashlight.Ghost
                 return;
             }
 
-            GhostAIController ghost = GetAvailableGhost();
-            if (ghost == null)
+            GhostSpawnEntry entry = PickRandomSpawnEntry();
+            if (entry == null)
             {
                 return;
             }
 
-            Transform spawnPoint = PickRandomSpawnPoint();
-            if (spawnPoint == null)
+            TrySpawnEntry(entry);
+        }
+
+        /// <summary>
+        /// Spawns a specific ghost type by index for debug and scripted encounters.
+        /// </summary>
+        /// <param name="index">Index into <see cref="ghostSpawnEntries"/>.</param>
+        public void SpawnSpecific(int index)
+        {
+            if (_activeGhosts.Count >= _maxActiveGhosts)
             {
                 return;
             }
 
-            Vector3 spawnPosition = spawnPoint.position;
-            if (IsPositionInExclusionZone(spawnPosition))
+            if (ghostSpawnEntries == null || index < 0 || index >= ghostSpawnEntries.Count)
             {
+                Debug.LogWarning($"{nameof(GhostSpawnManager)} could not spawn ghost at index {index}.", this);
                 return;
             }
 
-            ghost.transform.position = spawnPosition;
-
-            NavMeshAgent agent = ghost.GetComponent<NavMeshAgent>();
-            if (agent != null)
+            GhostSpawnEntry entry = ghostSpawnEntries[index];
+            if (entry == null || entry.prefab == null)
             {
-                agent.enabled = true;
-                agent.Warp(spawnPosition);
+                Debug.LogWarning($"{nameof(GhostSpawnManager)} has no prefab at index {index}.", this);
+                return;
             }
 
-            ghost.gameObject.SetActive(true);
-            ghost.Activate(player);
-            _activeGhosts.Add(ghost);
+            TrySpawnEntry(entry);
         }
 
         /// <summary>
@@ -211,13 +283,33 @@ namespace Ashlight.Ghost
                 return;
             }
 
-            for (int i = 0; i < PoolSize; i++)
+            _pools.Clear();
+            _ghostPoolKeys.Clear();
+
+            foreach (GhostSpawnEntry entry in ghostSpawnEntries)
             {
-                GhostAIController instance = Instantiate(ghostPrefab, Vector3.zero, Quaternion.identity, transform);
-                instance.SetPlayer(player);
-                instance.SetTorch(playerTorch);
-                _pool.Add(instance);
-                instance.gameObject.SetActive(false);
+                if (entry == null || entry.prefab == null)
+                {
+                    continue;
+                }
+
+                string poolKey = GetPoolKey(entry);
+                if (!_pools.TryGetValue(poolKey, out Queue<GhostAIController> queue))
+                {
+                    queue = new Queue<GhostAIController>();
+                    _pools[poolKey] = queue;
+                }
+
+                int size = Mathf.Max(1, entry.poolSize);
+                for (int i = 0; i < size; i++)
+                {
+                    GhostAIController instance = Instantiate(entry.prefab, Vector3.zero, Quaternion.identity, transform);
+                    instance.SetPlayer(player);
+                    instance.SetTorch(playerTorch);
+                    instance.gameObject.SetActive(false);
+                    queue.Enqueue(instance);
+                    _ghostPoolKeys[instance] = poolKey;
+                }
             }
         }
 
@@ -249,22 +341,152 @@ namespace Ashlight.Ghost
                 GhostAIController ghost = _activeGhosts[i];
                 if (ghost == null || !ghost.IsSpawnActive)
                 {
+                    if (ghost != null)
+                    {
+                        ReturnToPool(ghost);
+                    }
+
                     _activeGhosts.RemoveAt(i);
                 }
             }
         }
 
-        private GhostAIController GetAvailableGhost()
+        private void TrySpawnEntry(GhostSpawnEntry entry)
         {
-            foreach (GhostAIController ghost in _pool)
+            GhostAIController ghost = GetAvailableGhost(entry);
+            if (ghost == null)
             {
-                if (ghost != null && !ghost.gameObject.activeSelf)
+                return;
+            }
+
+            Transform spawnPoint = PickRandomSpawnPoint();
+            if (spawnPoint == null)
+            {
+                ReturnToPool(ghost);
+                return;
+            }
+
+            Vector3 spawnPosition = spawnPoint.position;
+            if (IsPositionInExclusionZone(spawnPosition))
+            {
+                ReturnToPool(ghost);
+                return;
+            }
+
+            ghost.transform.position = spawnPosition;
+
+            NavMeshAgent agent = ghost.GetComponent<NavMeshAgent>();
+            if (agent != null)
+            {
+                agent.enabled = true;
+                agent.Warp(spawnPosition);
+            }
+
+            ghost.gameObject.SetActive(true);
+            ghost.SetPlayer(player);
+            ghost.SetTorch(playerTorch);
+            ghost.Activate(player);
+            _activeGhosts.Add(ghost);
+        }
+
+        private GhostSpawnEntry PickRandomSpawnEntry()
+        {
+            float totalWeight = 0f;
+
+            foreach (GhostSpawnEntry entry in ghostSpawnEntries)
+            {
+                if (entry == null || entry.prefab == null)
                 {
-                    return ghost;
+                    continue;
+                }
+
+                totalWeight += Mathf.Max(0f, entry.spawnWeight);
+            }
+
+            if (totalWeight <= 0f)
+            {
+                return null;
+            }
+
+            float roll = Random.Range(0f, totalWeight);
+            float cumulative = 0f;
+
+            foreach (GhostSpawnEntry entry in ghostSpawnEntries)
+            {
+                if (entry == null || entry.prefab == null)
+                {
+                    continue;
+                }
+
+                cumulative += Mathf.Max(0f, entry.spawnWeight);
+                if (roll <= cumulative)
+                {
+                    return entry;
                 }
             }
 
             return null;
+        }
+
+        private GhostAIController GetAvailableGhost(GhostSpawnEntry entry)
+        {
+            string poolKey = GetPoolKey(entry);
+
+            if (!_pools.TryGetValue(poolKey, out Queue<GhostAIController> queue) || queue.Count == 0)
+            {
+                return null;
+            }
+
+            int attempts = queue.Count;
+
+            while (attempts-- > 0)
+            {
+                GhostAIController ghost = queue.Dequeue();
+
+                if (ghost != null && !ghost.gameObject.activeSelf)
+                {
+                    _ghostPoolKeys[ghost] = poolKey;
+                    return ghost;
+                }
+
+                queue.Enqueue(ghost);
+            }
+
+            return null;
+        }
+
+        private void ReturnToPool(GhostAIController ghost)
+        {
+            if (ghost == null)
+            {
+                return;
+            }
+
+            if (!_ghostPoolKeys.TryGetValue(ghost, out string poolKey) || string.IsNullOrEmpty(poolKey))
+            {
+                return;
+            }
+
+            if (!_pools.TryGetValue(poolKey, out Queue<GhostAIController> queue))
+            {
+                queue = new Queue<GhostAIController>();
+                _pools[poolKey] = queue;
+            }
+
+            if (!queue.Contains(ghost))
+            {
+                queue.Enqueue(ghost);
+            }
+        }
+
+        private static string GetPoolKey(GhostSpawnEntry entry)
+        {
+            if (!string.IsNullOrEmpty(entry.ghostName))
+            {
+                return entry.ghostName;
+            }
+
+            return entry.prefab != null ? entry.prefab.name : "UnknownGhost";
         }
 
         private Transform PickRandomSpawnPoint()

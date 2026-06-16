@@ -1,34 +1,52 @@
+using System.Collections;
 using Ashlight.Environment;
+using Ashlight.Player;
 using Ashlight.Systems;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace Ashlight.UI
 {
     /// <summary>
-    /// Event-driven UI Toolkit HUD for Holy Water, torch fuel, and night cycle status.
+    /// Event-driven UI Toolkit HUD for night cycle, fear, damage feedback, and game over.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(UIDocument))]
     public class HUDManager : MonoBehaviour
     {
-        private const float LowHolyWaterThreshold = 0.2f;
-        private const string TorchFlameGlyph = "\uD83D\uDD25";
+        private const float DamageFlashDuration = 0.3f;
+        private const float HighFearPulseThreshold = 0.7f;
+        private const float FearHeartbeatRate = 8f;
+        private const string MainMenuSceneName = "MainMenu";
 
-        private static readonly Color HolyWaterGold = new Color(0.92f, 0.75f, 0.2f, 1f);
-        private static readonly Color HolyWaterWarning = new Color(0.85f, 0.2f, 0.2f, 1f);
-        private static readonly Color PanelBackground = new Color(0f, 0f, 0f, 0.6f);
+        private static readonly Color PhaseDay = new Color(0.478f, 0.722f, 0.478f);
+        private static readonly Color PhaseDusk = new Color(0.788f, 0.584f, 0.165f);
+        private static readonly Color PhaseNight = new Color(0.353f, 0.478f, 0.722f);
+        private static readonly Color PhaseDawn = new Color(0.910f, 0.788f, 0.420f);
+        private static readonly Color NightCounterGrey = new Color(0.620f, 0.620f, 0.620f);
+        private static readonly Color FearRed = new Color(0.753f, 0.188f, 0.188f);
+        private static readonly Color DamageFlashRed = new Color(0.753f, 0.188f, 0.188f, 0.45f);
 
         [SerializeField] private VisualTreeAsset hudLayout;
-        [SerializeField] private HolyWaterInventory holyWaterInventory;
-        [SerializeField] private HolyTorch holyTorch;
         [SerializeField] private DayNightCycle dayNightCycle;
+        [SerializeField] private FearSystem fearSystem;
+        [SerializeField] private PlayerHealth playerHealth;
+        [SerializeField] private ChurchSafeZone churchSafeZone;
+        [SerializeField] private string mainMenuSceneName = MainMenuSceneName;
 
         private UIDocument _uiDocument;
-        private ProgressBar _holyWaterBar;
-        private Label _torchIndicator;
         private Label _nightPhaseLabel;
-        private Label _nightCountLabel;
+        private Label _nightCounterLabel;
+        private Label _fearIndicator;
+        private VisualElement _damageFlash;
+        private VisualElement _gameOverPanel;
+        private Button _returnChurchButton;
+        private Button _mainMenuButton;
+
+        private float _currentFear;
+        private Coroutine _damageFlashRoutine;
+        private Transform _playerTransform;
 
         /// <summary>
         /// Formats current and maximum health for HUD display.
@@ -65,21 +83,54 @@ namespace Ashlight.UI
             }
         }
 
+        /// <summary>Formats a compact uppercase phase label for the top-center HUD indicator.</summary>
+        /// <param name="phase">Current phase.</param>
+        /// <returns>Uppercase phase label such as DAY or NIGHT.</returns>
+        public static string FormatNightPhaseIndicator(DayNightPhase phase)
+        {
+            switch (phase)
+            {
+                case DayNightPhase.Day:
+                    return "DAY";
+                case DayNightPhase.Dusk:
+                    return "DUSK";
+                case DayNightPhase.Night_Early:
+                case DayNightPhase.Night_Deep:
+                    return "NIGHT";
+                case DayNightPhase.Dawn:
+                    return "DAWN";
+                default:
+                    return phase.ToString().ToUpperInvariant();
+            }
+        }
+
+        /// <summary>Gets the indicator color for a day/night phase.</summary>
+        /// <param name="phase">Current phase.</param>
+        /// <returns>Phase-specific HUD color.</returns>
+        public static Color GetNightPhaseColor(DayNightPhase phase)
+        {
+            switch (phase)
+            {
+                case DayNightPhase.Day:
+                    return PhaseDay;
+                case DayNightPhase.Dusk:
+                    return PhaseDusk;
+                case DayNightPhase.Night_Early:
+                case DayNightPhase.Night_Deep:
+                    return PhaseNight;
+                case DayNightPhase.Dawn:
+                    return PhaseDawn;
+                default:
+                    return Color.white;
+            }
+        }
+
         /// <summary>Formats the night counter for HUD display.</summary>
         /// <param name="nightCount">Completed night cycles.</param>
         /// <returns>Display string such as "Night 3".</returns>
         public static string FormatNightCount(int nightCount)
         {
             return $"Night {Mathf.Max(0, nightCount)}";
-        }
-
-        /// <summary>Formats torch fuel for HUD display.</summary>
-        /// <param name="fuelPercent">Fuel from 0 to 1.</param>
-        /// <returns>Display string with flame glyph and percentage.</returns>
-        public static string FormatTorchFuel(float fuelPercent)
-        {
-            int percent = Mathf.RoundToInt(Mathf.Clamp01(fuelPercent) * 100f);
-            return $"{TorchFlameGlyph} {percent}%";
         }
 
         private void Awake()
@@ -98,23 +149,29 @@ namespace Ashlight.UI
                 _uiDocument.visualTreeAsset = hudLayout;
             }
 
-            if (holyWaterInventory == null)
+            if (dayNightCycle == null)
             {
-                Debug.LogWarning($"{nameof(HUDManager)} has no {nameof(HolyWaterInventory)} assigned.", this);
+                dayNightCycle = FindAnyObjectByType<DayNightCycle>();
             }
 
-            if (holyTorch == null)
+            if (fearSystem == null)
+            {
+                fearSystem = FindAnyObjectByType<FearSystem>();
+            }
+
+            if (playerHealth == null)
             {
                 GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
                 if (playerObject != null)
                 {
-                    holyTorch = playerObject.GetComponentInChildren<HolyTorch>();
+                    playerHealth = playerObject.GetComponent<PlayerHealth>();
+                    _playerTransform = playerObject.transform;
                 }
             }
 
-            if (dayNightCycle == null)
+            if (churchSafeZone == null)
             {
-                dayNightCycle = FindAnyObjectByType<DayNightCycle>();
+                churchSafeZone = FindAnyObjectByType<ChurchSafeZone>();
             }
         }
 
@@ -122,9 +179,9 @@ namespace Ashlight.UI
         {
             CacheVisualElements();
             BindEvents();
-            RefreshHolyWaterBar();
-            RefreshTorchIndicator();
             RefreshNightDisplay(dayNightCycle != null ? dayNightCycle.CurrentPhase : DayNightPhase.Day);
+            RefreshFearIndicator(_currentFear);
+            HideGameOverPanel();
         }
 
         private void OnDisable()
@@ -132,68 +189,63 @@ namespace Ashlight.UI
             UnbindEvents();
         }
 
+        private void Update()
+        {
+            UpdateFearPulse();
+        }
+
         private void CacheVisualElements()
         {
             VisualElement root = _uiDocument.rootVisualElement;
 
-            _holyWaterBar = root.Q<ProgressBar>("holy-water-bar");
-            _torchIndicator = root.Q<Label>("torch-indicator");
             _nightPhaseLabel = root.Q<Label>("night-phase-label");
-            _nightCountLabel = root.Q<Label>("night-count-label");
+            _nightCounterLabel = root.Q<Label>("night-counter-label") ?? root.Q<Label>("night-count-label");
+            _fearIndicator = root.Q<Label>("fear-indicator");
+            _damageFlash = root.Q<VisualElement>("damage-flash");
+            _gameOverPanel = root.Q<VisualElement>("game-over-panel");
+            _returnChurchButton = root.Q<Button>("return-church-button");
+            _mainMenuButton = root.Q<Button>("main-menu-button");
 
-            if (_holyWaterBar == null)
-            {
-                Debug.LogError($"{nameof(HUDManager)} could not find holy-water-bar in the HUD layout.", this);
-            }
-
-            _holyWaterBar?.schedule.Execute(ApplyHolyWaterBarColor).ExecuteLater(1);
+            _returnChurchButton?.RegisterCallback<ClickEvent>(_ => OnReturnToChurchClicked());
+            _mainMenuButton?.RegisterCallback<ClickEvent>(_ => OnMainMenuClicked());
         }
 
         private void BindEvents()
         {
-            if (holyWaterInventory != null)
-            {
-                holyWaterInventory.OnAmountChanged.AddListener(RefreshHolyWaterBar);
-                holyWaterInventory.OnReplenished.AddListener(RefreshHolyWaterBar);
-                holyWaterInventory.OnCriticalLevel.AddListener(RefreshHolyWaterBar);
-                holyWaterInventory.OnEmpty.AddListener(RefreshHolyWaterBar);
-            }
-
-            if (holyTorch != null)
-            {
-                holyTorch.OnFuelChanged.AddListener(OnTorchFuelChanged);
-                holyTorch.OnTorchLit.AddListener(RefreshTorchIndicator);
-                holyTorch.OnTorchLow.AddListener(RefreshTorchIndicator);
-                holyTorch.OnTorchExtinguished.AddListener(RefreshTorchIndicator);
-            }
-
             if (dayNightCycle != null)
             {
                 dayNightCycle.OnPhaseChanged.AddListener(OnDayNightPhaseChanged);
+            }
+
+            if (fearSystem != null)
+            {
+                fearSystem.OnFearChanged.AddListener(OnFearChanged);
+                _currentFear = fearSystem.CurrentFear;
+            }
+
+            if (playerHealth != null)
+            {
+                playerHealth.OnDamageTaken.AddListener(OnDamageTaken);
+                playerHealth.OnDeath.AddListener(OnPlayerDeath);
             }
         }
 
         private void UnbindEvents()
         {
-            if (holyWaterInventory != null)
-            {
-                holyWaterInventory.OnAmountChanged.RemoveListener(RefreshHolyWaterBar);
-                holyWaterInventory.OnReplenished.RemoveListener(RefreshHolyWaterBar);
-                holyWaterInventory.OnCriticalLevel.RemoveListener(RefreshHolyWaterBar);
-                holyWaterInventory.OnEmpty.RemoveListener(RefreshHolyWaterBar);
-            }
-
-            if (holyTorch != null)
-            {
-                holyTorch.OnFuelChanged.RemoveListener(OnTorchFuelChanged);
-                holyTorch.OnTorchLit.RemoveListener(RefreshTorchIndicator);
-                holyTorch.OnTorchLow.RemoveListener(RefreshTorchIndicator);
-                holyTorch.OnTorchExtinguished.RemoveListener(RefreshTorchIndicator);
-            }
-
             if (dayNightCycle != null)
             {
                 dayNightCycle.OnPhaseChanged.RemoveListener(OnDayNightPhaseChanged);
+            }
+
+            if (fearSystem != null)
+            {
+                fearSystem.OnFearChanged.RemoveListener(OnFearChanged);
+            }
+
+            if (playerHealth != null)
+            {
+                playerHealth.OnDamageTaken.RemoveListener(OnDamageTaken);
+                playerHealth.OnDeath.RemoveListener(OnPlayerDeath);
             }
         }
 
@@ -202,66 +254,136 @@ namespace Ashlight.UI
             RefreshNightDisplay(phase);
         }
 
-        private void RefreshHolyWaterBar()
+        private void OnFearChanged(float fear)
         {
-            if (_holyWaterBar == null || holyWaterInventory == null)
+            _currentFear = Mathf.Clamp01(fear);
+            RefreshFearIndicator(_currentFear);
+        }
+
+        private void OnDamageTaken(float currentHealth)
+        {
+            if (_damageFlash == null)
             {
                 return;
             }
 
-            _holyWaterBar.value = holyWaterInventory.Current;
-            _holyWaterBar.highValue = holyWaterInventory.MaxCapacity;
-            ApplyHolyWaterBarColor();
+            if (_damageFlashRoutine != null)
+            {
+                StopCoroutine(_damageFlashRoutine);
+            }
+
+            _damageFlashRoutine = StartCoroutine(DamageFlashRoutine());
         }
 
-        private void OnTorchFuelChanged(float normalizedFuel)
+        private void OnPlayerDeath()
         {
-            RefreshTorchIndicator();
+            ShowGameOverPanel();
         }
 
-        private void RefreshTorchIndicator()
+        private void OnReturnToChurchClicked()
         {
-            if (_torchIndicator == null || holyTorch == null)
+            RespawnAtChurch();
+            HideGameOverPanel();
+        }
+
+        private void OnMainMenuClicked()
+        {
+            SceneManager.LoadScene(mainMenuSceneName);
+        }
+
+        private void RespawnAtChurch()
+        {
+            if (playerHealth != null)
+            {
+                playerHealth.Revive();
+            }
+
+            if (_playerTransform == null)
+            {
+                GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+                if (playerObject != null)
+                {
+                    _playerTransform = playerObject.transform;
+                }
+            }
+
+            if (_playerTransform != null && churchSafeZone != null)
+            {
+                _playerTransform.position = churchSafeZone.transform.position;
+            }
+        }
+
+        private void ShowGameOverPanel()
+        {
+            if (_gameOverPanel != null)
+            {
+                _gameOverPanel.style.display = DisplayStyle.Flex;
+            }
+        }
+
+        private void HideGameOverPanel()
+        {
+            if (_gameOverPanel != null)
+            {
+                _gameOverPanel.style.display = DisplayStyle.None;
+            }
+        }
+
+        private IEnumerator DamageFlashRoutine()
+        {
+            _damageFlash.style.backgroundColor = DamageFlashRed;
+
+            float elapsed = 0f;
+            while (elapsed < DamageFlashDuration)
+            {
+                elapsed += Time.deltaTime;
+                float alpha = Mathf.Lerp(DamageFlashRed.a, 0f, elapsed / DamageFlashDuration);
+                _damageFlash.style.backgroundColor = new Color(DamageFlashRed.r, DamageFlashRed.g, DamageFlashRed.b, alpha);
+                yield return null;
+            }
+
+            _damageFlash.style.backgroundColor = new Color(DamageFlashRed.r, DamageFlashRed.g, DamageFlashRed.b, 0f);
+            _damageFlashRoutine = null;
+        }
+
+        private void UpdateFearPulse()
+        {
+            if (_fearIndicator == null)
             {
                 return;
             }
 
-            _torchIndicator.text = FormatTorchFuel(holyTorch.FuelPercent);
+            float opacity = _currentFear;
+            if (_currentFear > HighFearPulseThreshold)
+            {
+                float pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * FearHeartbeatRate);
+                opacity *= pulse;
+            }
+
+            _fearIndicator.style.opacity = opacity;
+            _fearIndicator.style.color = FearRed;
+        }
+
+        private void RefreshFearIndicator(float fear)
+        {
+            _currentFear = Mathf.Clamp01(fear);
+            UpdateFearPulse();
         }
 
         private void RefreshNightDisplay(DayNightPhase phase)
         {
             if (_nightPhaseLabel != null)
             {
-                _nightPhaseLabel.text = FormatNightPhase(phase);
+                _nightPhaseLabel.text = FormatNightPhaseIndicator(phase);
+                _nightPhaseLabel.style.color = GetNightPhaseColor(phase);
+                _nightPhaseLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+                _nightPhaseLabel.style.fontSize = 20;
             }
 
-            if (_nightCountLabel != null && dayNightCycle != null)
+            if (_nightCounterLabel != null && dayNightCycle != null)
             {
-                _nightCountLabel.text = FormatNightCount(dayNightCycle.NightCycleCount);
-            }
-        }
-
-        private void ApplyHolyWaterBarColor()
-        {
-            if (_holyWaterBar == null || holyWaterInventory == null)
-            {
-                return;
-            }
-
-            bool isLow = holyWaterInventory.FillPercent <= LowHolyWaterThreshold;
-            Color fillColor = isLow ? HolyWaterWarning : HolyWaterGold;
-
-            VisualElement progress = _holyWaterBar.Q(className: "unity-progress-bar__progress");
-            if (progress != null)
-            {
-                progress.style.backgroundColor = fillColor;
-            }
-
-            VisualElement background = _holyWaterBar.Q(className: "unity-progress-bar__background");
-            if (background != null)
-            {
-                background.style.backgroundColor = PanelBackground;
+                _nightCounterLabel.text = FormatNightCount(dayNightCycle.NightCycleCount);
+                _nightCounterLabel.style.color = NightCounterGrey;
             }
         }
     }

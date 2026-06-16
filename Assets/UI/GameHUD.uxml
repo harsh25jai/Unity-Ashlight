@@ -1,27 +1,28 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement name="hud-root" style="flex-grow: 1; position: relative;">
-        <ui:VisualElement name="holy-water-panel"
-                         style="position: absolute; bottom: 24px; left: 25%; right: 25%; height: 32px; padding: 4px 8px; background-color: rgba(0, 0, 0, 0.6); border-radius: 4px; flex-direction: row; align-items: center;">
-            <ui:ProgressBar name="holy-water-bar"
-                            title="Holy Water"
-                            style="flex-grow: 1; height: 20px;" />
-        </ui:VisualElement>
+        <ui:Label name="night-phase-label"
+                  text="DAY"
+                  style="position: absolute; top: 20px; align-self: center; left: 50%; translate: -50% 0; font-size: 20px; -unity-font-style: bold; color: rgb(122, 184, 122);" />
 
-        <ui:VisualElement name="torch-panel"
-                         style="position: absolute; bottom: 24px; left: 24px; min-width: 120px; height: 32px; padding: 4px 12px; background-color: rgba(0, 0, 0, 0.6); border-radius: 4px; justify-content: center;">
-            <ui:Label name="torch-indicator"
-                      text="&#128293; 100%"
-                      style="color: rgb(255, 220, 120); font-size: 16px; -unity-font-style: bold; -unity-text-align: middle-left;" />
-        </ui:VisualElement>
+        <ui:Label name="night-counter-label"
+                  text="Night 0"
+                  style="position: absolute; top: 20px; right: 20px; font-size: 16px; color: rgb(158, 158, 158); -unity-text-align: middle-right;" />
 
-        <ui:VisualElement name="night-panel"
-                         style="position: absolute; top: 24px; right: 24px; min-width: 160px; padding: 8px 12px; background-color: rgba(0, 0, 0, 0.6); border-radius: 4px; flex-direction: column; align-items: flex-end;">
-            <ui:Label name="night-phase-label"
-                      text="Day"
-                      style="color: rgb(220, 220, 230); font-size: 16px; -unity-font-style: bold; -unity-text-align: middle-right;" />
-            <ui:Label name="night-count-label"
-                      text="Night 0"
-                      style="color: rgb(180, 180, 200); font-size: 14px; margin-top: 4px; -unity-text-align: middle-right;" />
+        <ui:Label name="fear-indicator"
+                  text="&#9672;"
+                  style="position: absolute; bottom: 80px; right: 20px; font-size: 24px; color: rgb(192, 48, 48); opacity: 0;" />
+
+        <ui:VisualElement name="damage-flash"
+                          style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgba(192, 48, 48, 0); pointer-events: none;" />
+
+        <ui:VisualElement name="game-over-panel"
+                          style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.85); justify-content: center; align-items: center; display: none;">
+            <ui:Label text="YOU PERISHED"
+                      style="font-size: 48px; color: rgb(192, 48, 48); -unity-font-style: bold; margin-bottom: 32px;" />
+            <ui:Button name="return-church-button" text="Return to Church"
+                       style="width: 280px; height: 48px; margin-bottom: 12px; font-size: 18px; background-color: rgb(42, 31, 10); color: rgb(201, 149, 42); border-color: rgb(201, 149, 42); border-width: 1px;" />
+            <ui:Button name="main-menu-button" text="Main Menu"
+                       style="width: 280px; height: 48px; font-size: 18px; background-color: rgb(26, 26, 26); color: rgb(200, 200, 200); border-color: rgb(100, 100, 100); border-width: 1px;" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

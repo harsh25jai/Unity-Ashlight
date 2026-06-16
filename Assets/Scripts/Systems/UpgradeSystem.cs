@@ -44,6 +44,9 @@ namespace Ashlight.Systems
         /// <summary>Gets whether ritual abilities are unlocked.</summary>
         public bool RitualsUnlocked => _ritualsUnlocked;
 
+        /// <summary>Gets the configured upgrade tree asset.</summary>
+        public UpgradeTree UpgradeTree => upgradeTree;
+
         /// <summary>Invoked when faith changes.</summary>
         public UnityEvent<int> OnFaithChanged => _onFaithChanged;
 
@@ -163,6 +166,16 @@ namespace Ashlight.Systems
         public bool IsUpgradePurchased(string upgradeID)
         {
             return !string.IsNullOrEmpty(upgradeID) && _purchasedUpgradeIDs.Contains(upgradeID);
+        }
+
+        /// <summary>
+        /// Gets whether an upgrade's prerequisite has been purchased.
+        /// </summary>
+        /// <param name="upgrade">Upgrade to validate.</param>
+        /// <returns>True when prerequisites are satisfied.</returns>
+        public bool IsPrerequisiteMet(UpgradeDefinition upgrade)
+        {
+            return upgradeTree != null && upgradeTree.HasPrerequisite(upgrade, _purchasedUpgradeIDs);
         }
 
         /// <summary>

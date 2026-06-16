@@ -1,0 +1,26 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="MainMenu.uss" />
+
+    <ui:VisualElement name="menu-root"
+        style="flex-grow: 1; position: relative; background-color: rgb(13, 18, 32); justify-content: center; align-items: center;">
+
+        <ui:VisualElement name="center-panel"
+            style="align-items: center; justify-content: center;">
+
+            <ui:Label text="ASHLIGHT"
+                style="font-size: 64px; color: rgb(201, 149, 42); margin-bottom: 40px; -unity-font-style: bold; -unity-text-align: middle-center;" />
+
+            <ui:Label text="Carry the light. Survive the night."
+                style="font-size: 18px; color: rgb(122, 158, 124); -unity-font-style: italic; margin-bottom: 60px; -unity-text-align: middle-center;" />
+
+            <ui:Button name="new-game-button" text="NEW GAME" class="menu-button" />
+            <ui:Button name="continue-button" text="CONTINUE" class="menu-button" />
+            <ui:Label name="no-save-label" text=""
+                style="font-size: 14px; color: rgb(158, 158, 158); margin-top: 4px; margin-bottom: 4px; display: none; -unity-text-align: middle-center;" />
+            <ui:Button name="quit-button" text="QUIT" class="menu-button" />
+        </ui:VisualElement>
+
+        <ui:Label text="A game about faith and darkness"
+            style="position: absolute; bottom: 20px; left: 0; right: 0; font-size: 12px; color: rgb(85, 85, 85); -unity-text-align: middle-center;" />
+    </ui:VisualElement>
+</ui:UXML>

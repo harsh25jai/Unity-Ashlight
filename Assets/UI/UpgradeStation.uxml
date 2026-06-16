@@ -1,0 +1,22 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="overlay"
+        style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.85);">
+        <ui:VisualElement name="panel"
+            style="width: 900px; height: 600px; margin-top: auto; margin-bottom: auto; margin-left: auto; margin-right: auto; background-color: rgba(26, 31, 26, 0.95); border-color: rgb(201, 149, 42); border-width: 2px; border-radius: 8px; padding: 20px;">
+            <ui:Label name="title-label" text="UPGRADE STATION"
+                style="font-size: 28px; color: rgb(201, 149, 42); -unity-text-align: upper-center; margin-bottom: 10px; -unity-font-style: bold;" />
+            <ui:Label name="faith-label" text="Faith: 0"
+                style="font-size: 18px; color: rgb(255, 248, 231); -unity-text-align: upper-center; margin-bottom: 20px;" />
+            <ui:VisualElement name="columns" style="flex-direction: row; flex-grow: 1;">
+                <ui:VisualElement name="torch-column"
+                    style="flex-grow: 1; margin: 5px; border-color: rgb(85, 85, 85); border-width: 1px; padding: 10px;" />
+                <ui:VisualElement name="church-column"
+                    style="flex-grow: 1; margin: 5px; border-color: rgb(85, 85, 85); border-width: 1px; padding: 10px;" />
+                <ui:VisualElement name="character-column"
+                    style="flex-grow: 1; margin: 5px; border-color: rgb(85, 85, 85); border-width: 1px; padding: 10px;" />
+            </ui:VisualElement>
+            <ui:Button name="close-button" text="CLOSE (ESC)"
+                style="margin-top: 15px; height: 40px; background-color: rgb(42, 31, 10); color: rgb(201, 149, 42); font-size: 16px; border-color: rgb(201, 149, 42); border-width: 1px;" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

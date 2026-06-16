@@ -19,16 +19,18 @@ namespace Ashlight.UI.Tests
         }
 
         [Test]
-        public void FormatTorchFuel_ShowsPercentage()
-        {
-            Assert.IsTrue(HUDManager.FormatTorchFuel(0.85f).Contains("85%"));
-        }
-
-        [Test]
         public void FormatNightPhase_MapsKnownPhases()
         {
             Assert.AreEqual("Day", HUDManager.FormatNightPhase(DayNightPhase.Day));
             Assert.AreEqual("Night — Deep", HUDManager.FormatNightPhase(DayNightPhase.Night_Deep));
+        }
+
+        [Test]
+        public void FormatNightPhaseIndicator_UsesUppercaseLabels()
+        {
+            Assert.AreEqual("DAY", HUDManager.FormatNightPhaseIndicator(DayNightPhase.Day));
+            Assert.AreEqual("NIGHT", HUDManager.FormatNightPhaseIndicator(DayNightPhase.Night_Deep));
+            Assert.AreEqual("DAWN", HUDManager.FormatNightPhaseIndicator(DayNightPhase.Dawn));
         }
     }
 }

@@ -1,0 +1,33 @@
+.menu-button {
+    width: 200px;
+    height: 50px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    margin-left: 8px;
+    margin-right: 8px;
+    font-size: 18px;
+    background-color: rgb(26, 46, 26);
+    color: rgb(201, 149, 42);
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-color: rgb(201, 149, 42);
+    border-bottom-color: rgb(201, 149, 42);
+    border-left-color: rgb(201, 149, 42);
+    border-right-color: rgb(201, 149, 42);
+    -unity-font-style: bold;
+}
+
+.menu-button:hover {
+    background-color: rgb(42, 62, 42);
+}
+
+.menu-button:disabled {
+    background-color: rgb(18, 28, 18);
+    color: rgb(85, 85, 85);
+    border-top-color: rgb(68, 68, 68);
+    border-bottom-color: rgb(68, 68, 68);
+    border-left-color: rgb(68, 68, 68);
+    border-right-color: rgb(68, 68, 68);
+}

@@ -1,26 +1,31 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:Style src="MainMenu.uss" />
 
-    <ui:VisualElement name="menu-root"
-        style="flex-grow: 1; position: relative; background-color: rgb(13, 18, 32); justify-content: center; align-items: center;">
+    <ui:VisualElement name="menu-root" class="menu-root">
+        <ui:VisualElement name="background-layer" class="background-layer" />
+        <ui:VisualElement name="vignette-overlay" class="vignette-overlay" />
+        <ui:VisualElement name="ambient-glow" class="ambient-glow" />
 
-        <ui:VisualElement name="center-panel"
-            style="align-items: center; justify-content: center;">
+        <ui:VisualElement name="center-panel" class="center-panel">
+            <ui:VisualElement class="title-block">
+                <ui:Label name="title-label" text="ASHLIGHT" class="title-label" />
+                <ui:VisualElement class="title-underline" />
+                <ui:Label name="tagline-label"
+                          text="Carry the light. Survive the night."
+                          class="tagline-label" />
+            </ui:VisualElement>
 
-            <ui:Label text="ASHLIGHT"
-                style="font-size: 64px; color: rgb(201, 149, 42); margin-bottom: 40px; -unity-font-style: bold; -unity-text-align: middle-center;" />
+            <ui:VisualElement name="button-stack" class="button-stack">
+                <ui:Button name="new-game-button" text="NEW GAME" class="menu-button" focusable="true" />
+                <ui:Button name="continue-button" text="CONTINUE" class="menu-button menu-button-secondary" focusable="true" />
+                <ui:Label name="no-save-label" text="No save found" class="no-save-label" />
+                <ui:Button name="settings-button" text="SETTINGS" class="menu-button menu-button-secondary" focusable="true" />
+                <ui:Button name="quit-button" text="QUIT" class="menu-button menu-button-quit" focusable="true" />
+            </ui:VisualElement>
 
-            <ui:Label text="Carry the light. Survive the night."
-                style="font-size: 18px; color: rgb(122, 158, 124); -unity-font-style: italic; margin-bottom: 60px; -unity-text-align: middle-center;" />
-
-            <ui:Button name="new-game-button" text="NEW GAME" class="menu-button" />
-            <ui:Button name="continue-button" text="CONTINUE" class="menu-button" />
-            <ui:Label name="no-save-label" text=""
-                style="font-size: 14px; color: rgb(158, 158, 158); margin-top: 4px; margin-bottom: 4px; display: none; -unity-text-align: middle-center;" />
-            <ui:Button name="quit-button" text="QUIT" class="menu-button" />
+            <ui:Label name="status-label" text="" class="status-label" />
         </ui:VisualElement>
 
-        <ui:Label text="A game about faith and darkness"
-            style="position: absolute; bottom: 20px; left: 0; right: 0; font-size: 12px; color: rgb(85, 85, 85); -unity-text-align: middle-center;" />
+        <ui:Label text="A game about faith and darkness" class="footer-credit" />
     </ui:VisualElement>
 </ui:UXML>

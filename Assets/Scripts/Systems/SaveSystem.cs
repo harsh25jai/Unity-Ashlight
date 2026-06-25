@@ -7,6 +7,7 @@ using Ashlight.Environment;
 using Ashlight.Player;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 namespace Ashlight.Systems
 {
@@ -21,7 +22,8 @@ namespace Ashlight.Systems
         private const float AutoSaveIntervalSeconds = 300f;
 
         [SerializeField] private Transform playerTransform;
-        [SerializeField] private PlayerHealth playerHealth;
+        [FormerlySerializedAs("playerHealth")]
+        [SerializeField] private PlayerFaith playerFaith;
         [SerializeField] private HolyWaterInventory holyWaterInventory;
         [SerializeField] private HolyTorch holyTorch;
         [SerializeField] private DayNightCycle dayNightCycle;
@@ -76,9 +78,9 @@ namespace Ashlight.Systems
                 }
             }
 
-            if (playerHealth == null && playerTransform != null)
+            if (playerFaith == null && playerTransform != null)
             {
-                playerHealth = playerTransform.GetComponent<PlayerHealth>();
+                playerFaith = playerTransform.GetComponent<PlayerFaith>();
             }
 
             if (holyTorch == null && playerTransform != null)
@@ -96,9 +98,9 @@ namespace Ashlight.Systems
                 Debug.LogError($"{nameof(SaveSystem)} requires a player {nameof(Transform)}.", this);
             }
 
-            if (playerHealth == null)
+            if (playerFaith == null)
             {
-                Debug.LogError($"{nameof(SaveSystem)} requires a {nameof(PlayerHealth)}.", this);
+                Debug.LogError($"{nameof(SaveSystem)} requires a {nameof(PlayerFaith)}.", this);
             }
 
             if (holyWaterInventory == null)
@@ -217,6 +219,20 @@ namespace Ashlight.Systems
         }
 
         /// <summary>
+        /// Restores the player to the last saved snapshot after Faith depletion.
+        /// </summary>
+        public void RespawnFromLastSave()
+        {
+            if (HasSave)
+            {
+                LoadSave();
+                return;
+            }
+
+            InitializeDefaults();
+        }
+
+        /// <summary>
         /// Deletes the save file and resets all tracked systems to default values.
         /// </summary>
         public void DeleteSave()
@@ -251,8 +267,9 @@ namespace Ashlight.Systems
                 playerPosX = playerPosition.x,
                 playerPosY = playerPosition.y,
                 playerPosZ = playerPosition.z,
-                playerHealth = playerHealth != null ? playerHealth.CurrentHealth : 0f,
+                playerFaith = playerFaith != null ? playerFaith.CurrentFaith : 0f,
                 holyWaterCurrent = holyWaterInventory != null ? holyWaterInventory.Current : 0f,
+                holyWaterMaxCapacity = holyWaterInventory != null ? holyWaterInventory.MaxCapacity : 0f,
                 torchFuelCurrent = holyTorch != null ? holyTorch.CurrentFuel : 0f,
                 nightCycleCount = dayNightCycle != null ? dayNightCycle.NightCycleCount : 0,
                 currentNightDuration = dayNightCycle != null ? dayNightCycle.CycleElapsed : 0f,
@@ -333,8 +350,8 @@ namespace Ashlight.Systems
         private void ApplySaveData(SaveData data)
         {
             ApplyPlayerPosition(data);
-            ApplyPlayerHealth(data.playerHealth);
-            ApplyHolyWater(data.holyWaterCurrent);
+            ApplyPlayerFaith(ResolveSavedFaith(data));
+            ApplyHolyWater(data.holyWaterCurrent, data.holyWaterMaxCapacity);
             ApplyTorchFuel(data.torchFuelCurrent);
             ApplyDayNightCycle(data.nightCycleCount, data.currentNightDuration);
 
@@ -362,9 +379,9 @@ namespace Ashlight.Systems
             _activatedShrineIDs.Clear();
             _purchasedUpgradeIDs.Clear();
 
-            if (playerHealth != null)
+            if (playerFaith != null)
             {
-                playerHealth.Revive();
+                playerFaith.ResetToSavedFaith(PlayerFaith.DefaultMaxFaith);
             }
 
             if (holyWaterInventory != null)
@@ -405,21 +422,46 @@ namespace Ashlight.Systems
             }
         }
 
-        private void ApplyPlayerHealth(float health)
+        private static float ResolveSavedFaith(SaveData data)
         {
-            if (playerHealth == null)
+            if (data == null)
+            {
+                return PlayerFaith.DefaultMaxFaith;
+            }
+
+            if (data.playerFaith > 0f)
+            {
+                return data.playerFaith;
+            }
+
+            if (data.playerHealth > 0f)
+            {
+                return data.playerHealth;
+            }
+
+            return PlayerFaith.DefaultMaxFaith;
+        }
+
+        private void ApplyPlayerFaith(float faith)
+        {
+            if (playerFaith == null)
             {
                 return;
             }
 
-            playerHealth.SetCurrentHealth(health);
+            playerFaith.ResetToSavedFaith(faith);
         }
 
-        private void ApplyHolyWater(float amount)
+        private void ApplyHolyWater(float amount, float maxCapacity)
         {
             if (holyWaterInventory == null)
             {
                 return;
+            }
+
+            if (maxCapacity > 0f)
+            {
+                holyWaterInventory.SetMaxCapacity(maxCapacity);
             }
 
             holyWaterInventory.SetCurrent(amount);

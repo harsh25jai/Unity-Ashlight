@@ -4,12 +4,12 @@ using UnityEngine;
 
 namespace Ashlight.Player.Tests
 {
-    public class PlayerHealthTests
+    public class PlayerFaithTests
     {
         private GameObject _playerObject;
         private GameObject _torchObject;
         private HolyTorch _holyTorch;
-        private PlayerHealth _playerHealth;
+        private PlayerFaith _playerFaith;
 
         [SetUp]
         public void SetUp()
@@ -27,14 +27,14 @@ namespace Ashlight.Player.Tests
             spotLight.type = LightType.Spot;
 
             _holyTorch = _torchObject.AddComponent<HolyTorch>();
-            _playerHealth = _playerObject.AddComponent<PlayerHealth>();
+            _playerFaith = _playerObject.AddComponent<PlayerFaith>();
 
-            var torchField = typeof(PlayerHealth).GetField(
+            var torchField = typeof(PlayerFaith).GetField(
                 "holyTorch",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            torchField?.SetValue(_playerHealth, _holyTorch);
-            _playerHealth.enabled = true;
-            _playerHealth.Revive();
+            torchField?.SetValue(_playerFaith, _holyTorch);
+            _playerFaith.enabled = true;
+            _playerFaith.ResetToSavedFaith(PlayerFaith.DefaultMaxFaith);
         }
 
         [TearDown]
@@ -44,49 +44,49 @@ namespace Ashlight.Player.Tests
         }
 
         [Test]
-        public void TakeDamage_ReducesCurrentHealth()
+        public void TakeDamage_ReducesCurrentFaith()
         {
-            _playerHealth.TakeDamage(25f);
+            _playerFaith.TakeDamage(25f);
 
-            Assert.AreEqual(75f, _playerHealth.CurrentHealth);
+            Assert.AreEqual(75f, _playerFaith.CurrentFaith);
         }
 
         [Test]
-        public void TakeDamage_SyncsTorchHealthModifier()
+        public void TakeDamage_SyncsTorchFaithModifier()
         {
-            _playerHealth.TakeDamage(50f);
+            _playerFaith.TakeDamage(50f);
 
             Assert.AreEqual(0.5f, _holyTorch.HealthModifier, 0.001f);
         }
 
         [Test]
-        public void TakeDamage_TriggersDeathWithoutDestroyingObject()
+        public void TakeDamage_TriggersDepletionWithoutDestroyingObject()
         {
-            bool deathTriggered = false;
-            _playerHealth.OnDeath.AddListener(() => deathTriggered = true);
+            bool depletedTriggered = false;
+            _playerFaith.OnFaithDepleted.AddListener(() => depletedTriggered = true);
 
-            _playerHealth.TakeDamage(100f);
+            _playerFaith.TakeDamage(100f);
 
-            Assert.IsTrue(deathTriggered);
-            Assert.IsTrue(_playerHealth.IsDead);
+            Assert.IsTrue(depletedTriggered);
+            Assert.IsTrue(_playerFaith.IsDepleted);
             Assert.IsNotNull(_playerObject);
         }
 
         [Test]
-        public void Heal_RestoresHealthUpToMax()
+        public void RestoreFaith_RestoresUpToMax()
         {
-            _playerHealth.TakeDamage(40f);
-            _playerHealth.Heal(15f);
+            _playerFaith.TakeDamage(40f);
+            _playerFaith.RestoreFaith(15f);
 
-            Assert.AreEqual(75f, _playerHealth.CurrentHealth);
+            Assert.AreEqual(75f, _playerFaith.CurrentFaith);
         }
 
         [Test]
-        public void HealthPercent_ReturnsNormalizedValue()
+        public void FaithPercent_ReturnsNormalizedValue()
         {
-            _playerHealth.TakeDamage(25f);
+            _playerFaith.TakeDamage(25f);
 
-            Assert.AreEqual(0.75f, _playerHealth.HealthPercent, 0.001f);
+            Assert.AreEqual(0.75f, _playerFaith.FaithPercent, 0.001f);
         }
     }
 }

@@ -168,12 +168,19 @@ namespace Ashlight.Systems
             StopFlickerRoutine();
         }
 
-        /// <summary>Sets player health influence on torch brightness and range.</summary>
-        /// <param name="modifier">Health percentage from 0 to 1.</param>
-        public void SetHealthModifier(float modifier)
+        /// <summary>Sets player Faith influence on torch brightness and range.</summary>
+        /// <param name="modifier">Faith percentage from 0 to 1.</param>
+        public void SetFaithModifier(float modifier)
         {
             healthModifier = Mathf.Clamp01(modifier);
             ApplyLightState();
+        }
+
+        /// <summary>Legacy alias for <see cref="SetFaithModifier"/>.</summary>
+        /// <param name="modifier">Faith percentage from 0 to 1.</param>
+        public void SetHealthModifier(float modifier)
+        {
+            SetFaithModifier(modifier);
         }
 
         /// <summary>Enables or disables accelerated combat fuel drain.</summary>

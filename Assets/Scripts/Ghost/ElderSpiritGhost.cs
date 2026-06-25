@@ -571,9 +571,9 @@ namespace Ashlight.Ghost
                 _audioSource.PlayOneShot(explosionSound);
             }
 
-            if (PlayerHealthComponent != null)
+            if (PlayerFaithComponent != null)
             {
-                PlayerHealthComponent.TakeDamage(HollowExplosionDamage);
+                PlayerFaithComponent.TakeDamage(HollowExplosionDamage);
             }
 
             CurrentGhostHealth = Mathf.Max(0f, CurrentGhostHealth - HollowSelfDamage);

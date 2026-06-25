@@ -24,6 +24,7 @@ namespace Ashlight.Environment
     public class AltarInteraction : MonoBehaviour
     {
         private const float BlessingCooldown = 60f;
+        private const float FaithRestoreOnBlessing = 15f;
         private const string PromptText = "Press E to receive blessing";
 
         [SerializeField] private AltarType altarType = AltarType.TorchRefill;
@@ -34,6 +35,7 @@ namespace Ashlight.Environment
         [SerializeField] private HolyWaterInventory inventoryAsset;
         [SerializeField] private Transform player;
         [SerializeField] private PlayerController playerController;
+        [SerializeField] private PlayerFaith playerFaith;
         [SerializeField] private ParticleSystem blessingParticles;
         [SerializeField] private UIDocument promptDocument;
 
@@ -78,6 +80,11 @@ namespace Ashlight.Environment
             if (playerController == null && player != null)
             {
                 playerController = player.GetComponent<PlayerController>();
+            }
+
+            if (playerFaith == null && player != null)
+            {
+                playerFaith = player.GetComponent<PlayerFaith>();
             }
 
             if (playerController != null)
@@ -203,6 +210,8 @@ namespace Ashlight.Environment
             {
                 blessingParticles.Play();
             }
+
+            playerFaith?.RestoreFaith(FaithRestoreOnBlessing);
 
             BeginCooldown();
             _onBlessingReceived?.Invoke();

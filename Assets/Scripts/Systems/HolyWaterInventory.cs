@@ -120,6 +120,15 @@ namespace Ashlight.Systems
             NotifyInventoryChanged();
         }
 
+        /// <summary>Sets maximum Holy Water capacity for save/load restoration.</summary>
+        /// <param name="capacity">Capacity value clamped to at least 1.</param>
+        public void SetMaxCapacity(float capacity)
+        {
+            maxCapacity = Mathf.Max(1f, capacity);
+            current = Mathf.Min(current, maxCapacity);
+            NotifyInventoryChanged();
+        }
+
         /// <summary>Increases maximum Holy Water capacity.</summary>
         /// <param name="amount">Capacity amount to add.</param>
         public void AddMaxCapacity(float amount)

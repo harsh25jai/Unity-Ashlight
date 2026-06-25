@@ -5,6 +5,7 @@ using Ashlight.UI;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 namespace Ashlight.Ghost
 {
@@ -45,7 +46,8 @@ namespace Ashlight.Ghost
         [SerializeField] private GhostPerceptionSystem perception;
         [SerializeField] private GhostTorchInteraction ghostTorchInteraction;
         [SerializeField] private Transform player;
-        [SerializeField] private PlayerHealth playerHealth;
+        [FormerlySerializedAs("playerHealth")]
+        [SerializeField] private PlayerFaith playerFaith;
         [SerializeField] private Renderer ghostRenderer;
         [SerializeField] private ParticleSystem deathParticles;
         [SerializeField] private GameObject faithOrbPrefab;
@@ -111,7 +113,7 @@ namespace Ashlight.Ghost
         protected Renderer GhostRenderer => ghostRenderer;
 
         /// <summary>Gets the player health component.</summary>
-        protected PlayerHealth PlayerHealthComponent => playerHealth;
+        protected PlayerFaith PlayerFaithComponent => playerFaith;
 
         /// <summary>Gets the torch interaction component.</summary>
         protected GhostTorchInteraction TorchInteraction => ghostTorchInteraction;
@@ -201,9 +203,9 @@ namespace Ashlight.Ghost
                 perception.SetPlayer(playerTransform);
             }
 
-            if (playerHealth == null && playerTransform != null)
+            if (playerFaith == null && playerTransform != null)
             {
-                playerHealth = playerTransform.GetComponent<PlayerHealth>();
+                playerFaith = playerTransform.GetComponent<PlayerFaith>();
             }
         }
 
@@ -799,9 +801,9 @@ namespace Ashlight.Ghost
             {
                 _attackCooldownTimer = PlayerAttackCooldown;
 
-                if (playerHealth != null)
+                if (playerFaith != null)
                 {
-                    playerHealth.TakeDamage(ghostType.Damage);
+                    playerFaith.TakeDamage(ghostType.Damage);
                 }
 
                 _onAttackPlayer?.Invoke();

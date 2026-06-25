@@ -5,22 +5,24 @@ using Ashlight.Player;
 using Ashlight.Systems;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 namespace Ashlight.Environment
 {
     /// <summary>
-    /// Church safe zone that regenerates the player, repels ghosts, saves, and refuels the torch.
+    /// Church safe zone that restores Faith on worship, repels ghosts, saves, and refuels the torch.
     /// </summary>
     [DisallowMultipleComponent]
     public class ChurchSafeZone : MonoBehaviour
     {
-        private const float HealthRegenPerSecond = 5f;
         private const float StaminaRegenPerSecond = 10f;
+        private const float FaithRestoreOnEnter = 20f;
         private const float TorchRefuelDelay = 2f;
         private const float GhostRepelRadius = 20f;
         private const float ProximityInsideThreshold = 0.05f;
 
-        [SerializeField] private PlayerHealth playerHealth;
+        [FormerlySerializedAs("playerHealth")]
+        [SerializeField] private PlayerFaith playerFaith;
         [SerializeField] private HolyTorch holyTorch;
         [SerializeField] private SaveSystem saveSystem;
         [SerializeField] private GhostSpawnManager ghostSpawnManager;
@@ -77,9 +79,9 @@ namespace Ashlight.Environment
             {
                 _playerTransform = playerObject.transform;
 
-                if (playerHealth == null)
+                if (playerFaith == null)
                 {
-                    playerHealth = playerObject.GetComponent<PlayerHealth>();
+                    playerFaith = playerObject.GetComponent<PlayerFaith>();
                 }
 
                 if (holyTorch == null)
@@ -100,9 +102,9 @@ namespace Ashlight.Environment
                 ghostSpawnManager = FindAnyObjectByType<GhostSpawnManager>();
             }
 
-            if (playerHealth == null)
+            if (playerFaith == null)
             {
-                Debug.LogWarning($"{nameof(ChurchSafeZone)} has no {nameof(PlayerHealth)} assigned.", this);
+                Debug.LogWarning($"{nameof(ChurchSafeZone)} has no {nameof(PlayerFaith)} assigned.", this);
             }
 
             if (holyTorch == null)
@@ -227,6 +229,7 @@ namespace Ashlight.Environment
             }
 
             saveSystem?.AutoSave();
+            playerFaith?.RestoreFaith(FaithRestoreOnEnter);
             RepelNearbyGhosts();
 
             if (_torchRefuelCoroutine != null)
@@ -289,11 +292,6 @@ namespace Ashlight.Environment
         {
             while (enabled)
             {
-                if (playerHealth != null)
-                {
-                    playerHealth.Heal(HealthRegenPerSecond * Time.deltaTime);
-                }
-
                 if (_activePlayerController != null)
                 {
                     _activePlayerController.AddStamina(StaminaRegenPerSecond * Time.deltaTime);

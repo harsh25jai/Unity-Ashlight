@@ -13,10 +13,13 @@ namespace Ashlight.Systems
         public float playerPosX;
         public float playerPosY;
         public float playerPosZ;
-        public float playerHealth;
-
+        public float playerFaith;
         public float holyWaterCurrent;
+        public float holyWaterMaxCapacity;
         public float torchFuelCurrent;
+
+        /// <summary>Legacy save field migrated to <see cref="playerFaith"/>.</summary>
+        public float playerHealth;
 
         public int nightCycleCount;
         public float currentNightDuration;

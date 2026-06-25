@@ -4,6 +4,7 @@ using Ashlight.Player;
 using Ashlight.Systems;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 using UnityEngine.UIElements;
 
 namespace Ashlight.UI
@@ -31,7 +32,9 @@ namespace Ashlight.UI
         [SerializeField] private VisualTreeAsset hudLayout;
         [SerializeField] private DayNightCycle dayNightCycle;
         [SerializeField] private FearSystem fearSystem;
-        [SerializeField] private PlayerHealth playerHealth;
+        [FormerlySerializedAs("playerHealth")]
+        [SerializeField] private PlayerFaith playerFaith;
+        [SerializeField] private SaveSystem saveSystem;
         [SerializeField] private ChurchSafeZone churchSafeZone;
         [SerializeField] private string mainMenuSceneName = MainMenuSceneName;
 
@@ -49,17 +52,21 @@ namespace Ashlight.UI
         private Transform _playerTransform;
 
         /// <summary>
-        /// Formats current and maximum health for HUD display.
+        /// Formats current and maximum Faith for HUD display.
         /// </summary>
-        /// <param name="currentHealth">Current health value.</param>
-        /// <param name="maxHealth">Maximum health value.</param>
+        /// <param name="currentFaith">Current Faith value.</param>
+        /// <param name="maxFaith">Maximum Faith value.</param>
         /// <returns>Display string such as "85 / 100".</returns>
-        public static string FormatHealthDisplay(float currentHealth, float maxHealth)
+        public static string FormatFaithDisplay(float currentFaith, float maxFaith)
         {
-            int current = Mathf.CeilToInt(currentHealth);
-            int max = Mathf.CeilToInt(maxHealth);
+            int current = Mathf.CeilToInt(currentFaith);
+            int max = Mathf.CeilToInt(maxFaith);
             return $"{current} / {max}";
         }
+
+        /// <summary>Legacy alias for <see cref="FormatFaithDisplay"/>.</summary>
+        public static string FormatHealthDisplay(float currentHealth, float maxHealth)
+            => FormatFaithDisplay(currentHealth, maxHealth);
 
         /// <summary>Formats a day/night phase for HUD display.</summary>
         /// <param name="phase">Current phase.</param>
@@ -159,14 +166,19 @@ namespace Ashlight.UI
                 fearSystem = FindAnyObjectByType<FearSystem>();
             }
 
-            if (playerHealth == null)
+            if (playerFaith == null)
             {
                 GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
                 if (playerObject != null)
                 {
-                    playerHealth = playerObject.GetComponent<PlayerHealth>();
+                    playerFaith = playerObject.GetComponent<PlayerFaith>();
                     _playerTransform = playerObject.transform;
                 }
+            }
+
+            if (saveSystem == null)
+            {
+                saveSystem = FindAnyObjectByType<SaveSystem>();
             }
 
             if (churchSafeZone == null)
@@ -223,10 +235,9 @@ namespace Ashlight.UI
                 _currentFear = fearSystem.CurrentFear;
             }
 
-            if (playerHealth != null)
+            if (playerFaith != null)
             {
-                playerHealth.OnDamageTaken.AddListener(OnDamageTaken);
-                playerHealth.OnDeath.AddListener(OnPlayerDeath);
+                playerFaith.OnFaithDamaged.AddListener(OnFaithDamaged);
             }
         }
 
@@ -242,10 +253,9 @@ namespace Ashlight.UI
                 fearSystem.OnFearChanged.RemoveListener(OnFearChanged);
             }
 
-            if (playerHealth != null)
+            if (playerFaith != null)
             {
-                playerHealth.OnDamageTaken.RemoveListener(OnDamageTaken);
-                playerHealth.OnDeath.RemoveListener(OnPlayerDeath);
+                playerFaith.OnFaithDamaged.RemoveListener(OnFaithDamaged);
             }
         }
 
@@ -260,7 +270,7 @@ namespace Ashlight.UI
             RefreshFearIndicator(_currentFear);
         }
 
-        private void OnDamageTaken(float currentHealth)
+        private void OnFaithDamaged(float currentFaith)
         {
             if (_damageFlash == null)
             {
@@ -275,14 +285,9 @@ namespace Ashlight.UI
             _damageFlashRoutine = StartCoroutine(DamageFlashRoutine());
         }
 
-        private void OnPlayerDeath()
-        {
-            ShowGameOverPanel();
-        }
-
         private void OnReturnToChurchClicked()
         {
-            RespawnAtChurch();
+            RespawnFromLastSave();
             HideGameOverPanel();
         }
 
@@ -291,11 +296,12 @@ namespace Ashlight.UI
             SceneManager.LoadScene(mainMenuSceneName);
         }
 
-        private void RespawnAtChurch()
+        private void RespawnFromLastSave()
         {
-            if (playerHealth != null)
+            if (saveSystem != null)
             {
-                playerHealth.Revive();
+                saveSystem.RespawnFromLastSave();
+                return;
             }
 
             if (_playerTransform == null)
@@ -311,6 +317,8 @@ namespace Ashlight.UI
             {
                 _playerTransform.position = churchSafeZone.transform.position;
             }
+
+            playerFaith?.ResetToSavedFaith(PlayerFaith.DefaultMaxFaith);
         }
 
         private void ShowGameOverPanel()

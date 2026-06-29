@@ -1,4 +1,5 @@
 {
+    "version": 1,
     "name": "PlayerInputActions",
     "maps": [
         {
@@ -18,7 +19,7 @@
                     "name": "Run",
                     "type": "Button",
                     "id": "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -27,7 +28,7 @@
                     "name": "Interact",
                     "type": "Button",
                     "id": "3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -36,7 +37,16 @@
                     "name": "UseAbility",
                     "type": "Button",
                     "id": "4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "ActivateHolyWater",
+                    "type": "Button",
+                    "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0c",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -183,6 +193,17 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "UseAbility",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "289abcde-f012-3456-789a-bcdef0123456",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "ActivateHolyWater",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

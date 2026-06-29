@@ -3348,6 +3348,37 @@ MonoBehaviour:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_WorldSpaceCollider: {fileID: 0}
+--- !u!1 &1516338910
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1516338911}
+  m_Layer: 0
+  m_Name: SprayOrigin
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1516338911
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1516338910}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0, y: 1.3, z: 0.3}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1714774886}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1579275271
 GameObject:
   m_ObjectHideFlags: 0
@@ -3772,6 +3803,7 @@ GameObject:
   - component: {fileID: 1714774881}
   - component: {fileID: 1714774880}
   - component: {fileID: 1714774887}
+  - component: {fileID: 1714774888}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -3944,6 +3976,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1004832508}
+  - {fileID: 1516338911}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1714774887
@@ -3961,6 +3994,34 @@ MonoBehaviour:
   holyWaterInventory: {fileID: 11400000, guid: 613a3901407784ba3bb6d986ff4c0771, type: 2}
   breakChancePerHit: 0.15
   bottleBreakSound: {fileID: 0}
+--- !u!114 &1714774888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1714774879}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 941ca2a88a69e473fac80bc26025b2cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Systems.HolyWaterSpray
+  holyWaterInventory: {fileID: 11400000, guid: 613a3901407784ba3bb6d986ff4c0771, type: 2}
+  inputActions: {fileID: -944628639613478452, guid: ca18d6684f0ca4356a69496203c66d06, type: 3}
+  sprayOrigin: {fileID: 1516338911}
+  sprayEffect: {fileID: 0}
+  spraySoundSource: {fileID: 0}
+  sprayLoopSound: {fileID: 0}
+  emptySound: {fileID: 0}
+  totalSprayBudget: 2.5
+  sprayRadius: 1.5
+  sprayRange: 4
+  sprayConeAngle: 35
+  damagePerSecondContact: 25
+  ghostLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  grabberAutoLockTarget: {fileID: 0}
 --- !u!1 &1735992542
 GameObject:
   m_ObjectHideFlags: 0

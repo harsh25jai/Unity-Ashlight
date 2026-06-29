@@ -128,7 +128,7 @@ GameObject:
   - component: {fileID: -6703818510507117128}
   - component: {fileID: 852014377741922231}
   - component: {fileID: 2464706985789593987}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Ghost_Elder
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -324,7 +324,7 @@ MonoBehaviour:
   perception: {fileID: 5355452784084200076}
   ghostTorchInteraction: {fileID: -6703818510507117128}
   player: {fileID: 0}
-  playerHealth: {fileID: 0}
+  playerFaith: {fileID: 0}
   ghostRenderer: {fileID: 741621586557670080}
   deathParticles: {fileID: 0}
   faithOrbPrefab: {fileID: 9187955109280207406, guid: 7e48bfb16ed2d4ef5b03cdc59c902947, type: 3}
@@ -344,7 +344,7 @@ MonoBehaviour:
   spawnManager: {fileID: 0}
   fearSystem: {fileID: 0}
   holyWaterInventory: {fileID: 11400000, guid: 613a3901407784ba3bb6d986ff4c0771, type: 2}
-  ritualCost: 40
+  ritualBottleCost: 1
   ritualPromptCanvas: {fileID: 0}
   phaseTransitionEffect: {fileID: 0}
   defeatEffect: {fileID: 0}

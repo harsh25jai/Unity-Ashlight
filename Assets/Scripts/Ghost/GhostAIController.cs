@@ -378,6 +378,34 @@ namespace Ashlight.Ghost
         }
 
         /// <summary>
+        /// Applies Holy Water spray damage without torch light-resistance modifiers.
+        /// </summary>
+        /// <param name="damage">Damage amount to apply.</param>
+        public virtual void TakeHolyWaterDamage(float damage)
+        {
+            if (!_isActive || _isPerishing || damage <= 0f)
+            {
+                return;
+            }
+
+            currentGhostHealth = Mathf.Max(0f, currentGhostHealth - damage);
+            UpdateHealthBar();
+
+            if (currentGhostHealth <= 0f)
+            {
+                OnHealthDepleted();
+                return;
+            }
+
+            if (GhostHealthPercent < RetreatHealthThreshold &&
+                _currentState != GhostState.Retreat &&
+                _currentState != GhostState.Recharge)
+            {
+                ChangeState(GhostState.Retreat);
+            }
+        }
+
+        /// <summary>
         /// Determines whether torch light should force a retreat.
         /// </summary>
         /// <param name="lightLevel">Sampled torch light from 0 to 1.</param>

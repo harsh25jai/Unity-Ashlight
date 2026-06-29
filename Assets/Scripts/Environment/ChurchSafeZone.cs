@@ -5,26 +5,32 @@ using Ashlight.Player;
 using Ashlight.Systems;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.Serialization;
 
 namespace Ashlight.Environment
 {
     /// <summary>
-    /// Church safe zone that restores Faith on worship, repels ghosts, saves, and refuels the torch.
+    /// Church type that determines save-point availability and worship features offered in the zone.
+    /// </summary>
+    public enum ChurchType
+    {
+        SimpleAltar,
+        Candle,
+        HolyWater,
+        Priest,
+        MultiBenefit
+    }
+
+    /// <summary>
+    /// Church safe zone that repels ghosts and regenerates player stamina regardless of church type.
     /// </summary>
     [DisallowMultipleComponent]
     public class ChurchSafeZone : MonoBehaviour
     {
         private const float StaminaRegenPerSecond = 10f;
-        private const float FaithRestoreOnEnter = 20f;
-        private const float TorchRefuelDelay = 2f;
         private const float GhostRepelRadius = 20f;
         private const float ProximityInsideThreshold = 0.05f;
 
-        [FormerlySerializedAs("playerHealth")]
-        [SerializeField] private PlayerFaith playerFaith;
-        [SerializeField] private HolyTorch holyTorch;
-        [SerializeField] private SaveSystem saveSystem;
+        [SerializeField] private ChurchType churchType = ChurchType.SimpleAltar;
         [SerializeField] private GhostSpawnManager ghostSpawnManager;
         [SerializeField] private BoxCollider safeZoneCollider;
         [SerializeField] private bool useProximityFallback = true;
@@ -34,7 +40,6 @@ namespace Ashlight.Environment
         [SerializeField] private UnityEvent _onPlayerExited;
 
         private Coroutine _regenCoroutine;
-        private Coroutine _torchRefuelCoroutine;
         private PlayerController _activePlayerController;
         private Transform _playerTransform;
         private bool _isPlayerInside;
@@ -44,6 +49,12 @@ namespace Ashlight.Environment
 
         /// <summary>Raised when the player leaves the church safe zone.</summary>
         public static event Action OnPlayerExitChurch;
+
+        /// <summary>Gets whether this church offers a save point when worshipped.</summary>
+        public bool HasSavePoint => churchType != ChurchType.SimpleAltar;
+
+        /// <summary>Gets the configured church type for this safe zone.</summary>
+        public ChurchType Type => churchType;
 
         /// <summary>Invoked when the player enters the church safe zone.</summary>
         public UnityEvent OnPlayerEntered => _onPlayerEntered;
@@ -78,43 +89,12 @@ namespace Ashlight.Environment
             if (playerObject != null)
             {
                 _playerTransform = playerObject.transform;
-
-                if (playerFaith == null)
-                {
-                    playerFaith = playerObject.GetComponent<PlayerFaith>();
-                }
-
-                if (holyTorch == null)
-                {
-                    holyTorch = playerObject.GetComponentInChildren<HolyTorch>();
-                }
-
                 EnsurePlayerTriggerPhysics(playerObject);
-            }
-
-            if (saveSystem == null)
-            {
-                saveSystem = FindAnyObjectByType<SaveSystem>();
             }
 
             if (ghostSpawnManager == null)
             {
                 ghostSpawnManager = FindAnyObjectByType<GhostSpawnManager>();
-            }
-
-            if (playerFaith == null)
-            {
-                Debug.LogWarning($"{nameof(ChurchSafeZone)} has no {nameof(PlayerFaith)} assigned.", this);
-            }
-
-            if (holyTorch == null)
-            {
-                Debug.LogWarning($"{nameof(ChurchSafeZone)} has no {nameof(HolyTorch)} assigned.", this);
-            }
-
-            if (saveSystem == null)
-            {
-                Debug.LogWarning($"{nameof(ChurchSafeZone)} has no {nameof(SaveSystem)} assigned.", this);
             }
 
             if (_playerTransform == null)
@@ -203,7 +183,6 @@ namespace Ashlight.Environment
             playerRigidbody = playerObject.AddComponent<Rigidbody>();
             playerRigidbody.isKinematic = true;
             playerRigidbody.useGravity = false;
-            // Debug.Log($"{nameof(ChurchSafeZone)} added kinematic {nameof(Rigidbody)} to Player for trigger detection.");
         }
 
         private void ProcessPlayerEnter(Collider playerCollider)
@@ -228,18 +207,8 @@ namespace Ashlight.Environment
                 ghostSpawnManager.SetSpawnExclusionZone(safeZoneCollider);
             }
 
-            saveSystem?.AutoSave();
-            playerFaith?.RestoreFaith(FaithRestoreOnEnter);
             RepelNearbyGhosts();
 
-            if (_torchRefuelCoroutine != null)
-            {
-                StopCoroutine(_torchRefuelCoroutine);
-            }
-
-            _torchRefuelCoroutine = StartCoroutine(DelayedTorchRefuelRoutine());
-
-            // Debug.Log($"{nameof(ChurchSafeZone)}: Player entered church safe zone.");
             OnPlayerEnterChurch?.Invoke();
             _onPlayerEntered?.Invoke();
         }
@@ -259,12 +228,6 @@ namespace Ashlight.Environment
                 _regenCoroutine = null;
             }
 
-            if (_torchRefuelCoroutine != null)
-            {
-                StopCoroutine(_torchRefuelCoroutine);
-                _torchRefuelCoroutine = null;
-            }
-
             if (ghostSpawnManager != null)
             {
                 ghostSpawnManager.ClearSpawnExclusionZone();
@@ -272,7 +235,6 @@ namespace Ashlight.Environment
 
             _activePlayerController = null;
 
-            // Debug.Log($"{nameof(ChurchSafeZone)}: Player exited church safe zone.");
             OnPlayerExitChurch?.Invoke();
             _onPlayerExited?.Invoke();
         }
@@ -299,18 +261,6 @@ namespace Ashlight.Environment
 
                 yield return null;
             }
-        }
-
-        private IEnumerator DelayedTorchRefuelRoutine()
-        {
-            yield return new WaitForSeconds(TorchRefuelDelay);
-
-            if (holyTorch != null)
-            {
-                holyTorch.Refuel(holyTorch.MaxFuel);
-            }
-
-            _torchRefuelCoroutine = null;
         }
     }
 }

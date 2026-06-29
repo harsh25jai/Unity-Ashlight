@@ -15,5 +15,21 @@ namespace Ashlight.Environment.Tests
             Assert.LessOrEqual(Vector3.Distance(origin, inside), 20f);
             Assert.Greater(Vector3.Distance(origin, outside), 20f);
         }
+
+        [Test]
+        public void HasSavePoint_IsFalseForSimpleAltar()
+        {
+            GameObject churchObject = new GameObject(nameof(ChurchSafeZone));
+            ChurchSafeZone church = churchObject.AddComponent<ChurchSafeZone>();
+
+            try
+            {
+                Assert.IsFalse(church.HasSavePoint);
+            }
+            finally
+            {
+                Object.DestroyImmediate(churchObject);
+            }
+        }
     }
 }

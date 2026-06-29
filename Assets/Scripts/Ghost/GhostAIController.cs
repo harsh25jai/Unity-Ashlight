@@ -806,6 +806,15 @@ namespace Ashlight.Ghost
                     playerFaith.TakeDamage(ghostType.Damage);
                 }
 
+                if (player != null)
+                {
+                    BottleBreakOnGhostContact bottleBreak = player.GetComponent<BottleBreakOnGhostContact>();
+                    if (bottleBreak != null)
+                    {
+                        bottleBreak.TryBreakBottle();
+                    }
+                }
+
                 _onAttackPlayer?.Invoke();
             }
         }

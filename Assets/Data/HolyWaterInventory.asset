@@ -12,14 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 95372d317d96a4f23b252d8a112b44e3, type: 3}
   m_Name: HolyWaterInventory
   m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Systems.HolyWaterInventory
-  current: 100
-  maxCapacity: 100
-  _onCriticalLevel:
+  currentBottles: 0
+  maxBottles: 0
+  _onBottleConsumed:
     m_PersistentCalls:
       m_Calls: []
-  _onEmpty:
+  _onBottleBroken:
     m_PersistentCalls:
       m_Calls: []
-  _onReplenished:
+  _onBottleCountChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  _onCapacityChanged:
     m_PersistentCalls:
       m_Calls: []

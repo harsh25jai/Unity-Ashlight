@@ -268,8 +268,8 @@ namespace Ashlight.Systems
                 playerPosY = playerPosition.y,
                 playerPosZ = playerPosition.z,
                 playerFaith = playerFaith != null ? playerFaith.CurrentFaith : 0f,
-                holyWaterCurrent = holyWaterInventory != null ? holyWaterInventory.Current : 0f,
-                holyWaterMaxCapacity = holyWaterInventory != null ? holyWaterInventory.MaxCapacity : 0f,
+                holyWaterBottles = holyWaterInventory != null ? holyWaterInventory.CurrentBottles : 0,
+                holyWaterMaxBottles = holyWaterInventory != null ? holyWaterInventory.MaxBottles : 0,
                 torchFuelCurrent = holyTorch != null ? holyTorch.CurrentFuel : 0f,
                 nightCycleCount = dayNightCycle != null ? dayNightCycle.NightCycleCount : 0,
                 currentNightDuration = dayNightCycle != null ? dayNightCycle.CycleElapsed : 0f,
@@ -351,7 +351,7 @@ namespace Ashlight.Systems
         {
             ApplyPlayerPosition(data);
             ApplyPlayerFaith(ResolveSavedFaith(data));
-            ApplyHolyWater(data.holyWaterCurrent, data.holyWaterMaxCapacity);
+            ApplyHolyWater(data);
             ApplyTorchFuel(data.torchFuelCurrent);
             ApplyDayNightCycle(data.nightCycleCount, data.currentNightDuration);
 
@@ -386,7 +386,7 @@ namespace Ashlight.Systems
 
             if (holyWaterInventory != null)
             {
-                holyWaterInventory.ResetToFull();
+                holyWaterInventory.ResetToDefault();
             }
 
             if (holyTorch != null)
@@ -452,19 +452,27 @@ namespace Ashlight.Systems
             playerFaith.ResetToSavedFaith(faith);
         }
 
-        private void ApplyHolyWater(float amount, float maxCapacity)
+        private void ApplyHolyWater(SaveData data)
         {
-            if (holyWaterInventory == null)
+            if (holyWaterInventory == null || data == null)
             {
                 return;
             }
 
-            if (maxCapacity > 0f)
+            int bottles = data.holyWaterBottles;
+            int capacity = data.holyWaterMaxBottles;
+
+            if (capacity <= 0 && data.holyWaterMaxCapacity > 0f)
             {
-                holyWaterInventory.SetMaxCapacity(maxCapacity);
+                capacity = Mathf.Clamp(Mathf.RoundToInt(data.holyWaterMaxCapacity), 0, HolyWaterInventory.AbsoluteMaxBottles);
             }
 
-            holyWaterInventory.SetCurrent(amount);
+            if (bottles <= 0 && data.holyWaterCurrent > 0f)
+            {
+                bottles = Mathf.Clamp(Mathf.RoundToInt(data.holyWaterCurrent), 0, capacity);
+            }
+
+            holyWaterInventory.SetState(bottles, capacity);
         }
 
         private void ApplyTorchFuel(float fuel)

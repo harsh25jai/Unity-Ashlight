@@ -4,185 +4,137 @@ using UnityEngine.Events;
 namespace Ashlight.Systems
 {
     /// <summary>
-    /// Shared Holy Water storage used by torch drain, pickups, and church replenishment.
+    /// Bottle-based Holy Water inventory for combat abilities. Capacity unlocks via progression.
     /// </summary>
-    [CreateAssetMenu(fileName = "HolyWaterInventory", menuName = "Ashlight/Systems/Holy Water Inventory")]
+    [CreateAssetMenu(fileName = "HolyWaterInventory", menuName = "Ashlight/Holy Water Inventory")]
     public class HolyWaterInventory : ScriptableObject
     {
-        private const float CriticalThreshold = 0.2f;
+        public const int AbsoluteMaxBottles = 4;
 
-        [SerializeField] private float current = 100f;
-        [SerializeField] private float maxCapacity = 100f;
+        [SerializeField] private int currentBottles;
+        [SerializeField] private int maxBottles;
 
         [Header("Events")]
-        [SerializeField] private UnityEvent _onCriticalLevel;
-        [SerializeField] private UnityEvent _onEmpty;
-        [SerializeField] private UnityEvent _onReplenished;
-        [SerializeField] private UnityEvent _onAmountChanged;
-        [SerializeField] private UnityEvent<float> _onInventoryChanged;
+        [SerializeField] private UnityEvent _onBottleConsumed;
+        [SerializeField] private UnityEvent _onBottleBroken;
+        [SerializeField] private UnityEvent<int> _onBottleCountChanged;
+        [SerializeField] private UnityEvent<int> _onCapacityChanged;
 
-        [System.NonSerialized] private bool _criticalLevelFired;
+        /// <summary>Gets the number of bottles currently carried.</summary>
+        public int CurrentBottles => currentBottles;
 
-        /// <summary>Gets the current Holy Water amount.</summary>
-        public float Current => current;
+        /// <summary>Gets the maximum bottles the player can carry.</summary>
+        public int MaxBottles => maxBottles;
 
-        /// <summary>Gets the maximum Holy Water capacity.</summary>
-        public float MaxCapacity => maxCapacity;
+        /// <summary>Gets whether the player is carrying at least one bottle.</summary>
+        public bool HasBottles => currentBottles > 0;
 
-        /// <summary>Gets the fill level from 0 to 1.</summary>
-        public float FillPercent => maxCapacity > 0f ? Mathf.Clamp01(current / maxCapacity) : 0f;
+        /// <summary>Gets bottle fill from 0 to 1 based on current and max capacity.</summary>
+        public float BottleFillPercent => maxBottles > 0 ? (float)currentBottles / maxBottles : 0f;
 
-        /// <summary>Invoked once when fill drops to or below 20%.</summary>
-        public UnityEvent OnCriticalLevel => _onCriticalLevel;
+        /// <summary>Invoked when a bottle is consumed for an ability.</summary>
+        public UnityEvent OnBottleConsumed => _onBottleConsumed;
 
-        /// <summary>Invoked when Holy Water reaches zero.</summary>
-        public UnityEvent OnEmpty => _onEmpty;
+        /// <summary>Invoked when a bottle is broken by ghost contact.</summary>
+        public UnityEvent OnBottleBroken => _onBottleBroken;
 
-        /// <summary>Invoked when Holy Water is replenished.</summary>
-        public UnityEvent OnReplenished => _onReplenished;
+        /// <summary>Invoked when the bottle count changes. Passes current bottle count.</summary>
+        public UnityEvent<int> OnBottleCountChanged => _onBottleCountChanged;
 
-        /// <summary>Invoked whenever the Holy Water amount changes.</summary>
-        public UnityEvent OnAmountChanged => _onAmountChanged;
-
-        /// <summary>Invoked whenever inventory changes with normalized fill from 0 to 1.</summary>
-        public UnityEvent<float> OnInventoryChanged => _onInventoryChanged;
+        /// <summary>Invoked when max bottle capacity changes. Passes new max capacity.</summary>
+        public UnityEvent<int> OnCapacityChanged => _onCapacityChanged;
 
         /// <summary>
-        /// Attempts to spend Holy Water.
+        /// Consumes one bottle for combat use.
         /// </summary>
-        /// <param name="amount">Amount to spend.</param>
-        /// <returns>False when there is insufficient Holy Water.</returns>
-        public bool Spend(float amount)
+        /// <returns>False when no bottles are available.</returns>
+        public bool ConsumeBottle()
         {
-            if (amount <= 0f)
-            {
-                return true;
-            }
-
-            if (current < amount)
+            if (currentBottles <= 0)
             {
                 return false;
             }
 
-            float previous = current;
-            current -= amount;
-            current = Mathf.Max(0f, current);
-            EvaluateLevelEvents(previous);
-            NotifyInventoryChanged();
+            currentBottles--;
+            _onBottleConsumed?.Invoke();
+            _onBottleCountChanged?.Invoke(currentBottles);
             return true;
         }
 
         /// <summary>
-        /// Adds Holy Water up to maximum capacity.
+        /// Adds one bottle when inventory has spare capacity.
         /// </summary>
-        /// <param name="amount">Amount to add.</param>
-        public void Replenish(float amount)
+        /// <returns>False when inventory is full.</returns>
+        public bool AddBottle()
         {
-            if (amount <= 0f)
+            if (currentBottles >= maxBottles)
             {
-                return;
+                return false;
             }
 
-            float previous = current;
-            current = Mathf.Min(maxCapacity, current + amount);
+            currentBottles++;
+            _onBottleCountChanged?.Invoke(currentBottles);
+            return true;
+        }
 
-            if (current > previous)
+        /// <summary>
+        /// Breaks one carried bottle without consuming it for an ability.
+        /// </summary>
+        /// <returns>False when no bottles are available.</returns>
+        public bool BreakBottle()
+        {
+            if (currentBottles <= 0)
             {
-                _onReplenished?.Invoke();
+                return false;
             }
 
-            EvaluateLevelEvents(previous);
-            NotifyInventoryChanged();
+            currentBottles--;
+            _onBottleBroken?.Invoke();
+            _onBottleCountChanged?.Invoke(currentBottles);
+            return true;
         }
 
-        /// <summary>Resets Holy Water to maximum capacity.</summary>
-        public void ResetToFull()
+        /// <summary>
+        /// Increases max bottle capacity up to <see cref="AbsoluteMaxBottles"/>.
+        /// </summary>
+        /// <param name="amount">Number of additional bottle slots to unlock.</param>
+        /// <returns>False when already at the absolute cap.</returns>
+        public bool IncreaseCapacity(int amount)
         {
-            float previous = current;
-            current = maxCapacity;
-            _criticalLevelFired = false;
-
-            if (current > previous)
+            if (amount <= 0)
             {
-                _onReplenished?.Invoke();
+                return false;
             }
 
-            NotifyInventoryChanged();
-        }
-
-        /// <summary>Sets the current Holy Water amount for save/load restoration.</summary>
-        /// <param name="amount">Amount clamped between 0 and max capacity.</param>
-        public void SetCurrent(float amount)
-        {
-            float previous = current;
-            current = Mathf.Clamp(amount, 0f, maxCapacity);
-            EvaluateLevelEvents(previous);
-            NotifyInventoryChanged();
-        }
-
-        /// <summary>Sets maximum Holy Water capacity for save/load restoration.</summary>
-        /// <param name="capacity">Capacity value clamped to at least 1.</param>
-        public void SetMaxCapacity(float capacity)
-        {
-            maxCapacity = Mathf.Max(1f, capacity);
-            current = Mathf.Min(current, maxCapacity);
-            NotifyInventoryChanged();
-        }
-
-        /// <summary>Increases maximum Holy Water capacity.</summary>
-        /// <param name="amount">Capacity amount to add.</param>
-        public void AddMaxCapacity(float amount)
-        {
-            if (amount <= 0f)
+            int newMax = Mathf.Min(maxBottles + amount, AbsoluteMaxBottles);
+            if (newMax == maxBottles)
             {
-                return;
+                return false;
             }
 
-            maxCapacity += amount;
-            NotifyInventoryChanged();
+            maxBottles = newMax;
+            currentBottles = Mathf.Min(currentBottles, maxBottles);
+            _onCapacityChanged?.Invoke(maxBottles);
+            return true;
         }
 
-        /// <summary>Multiplies maximum Holy Water capacity.</summary>
-        /// <param name="multiplier">Capacity multiplier.</param>
-        public void MultiplyMaxCapacity(float multiplier)
+        /// <summary>
+        /// Restores exact bottle state for save/load.
+        /// </summary>
+        /// <param name="bottles">Current bottle count.</param>
+        /// <param name="capacity">Maximum bottle capacity.</param>
+        public void SetState(int bottles, int capacity)
         {
-            if (multiplier <= 0f)
-            {
-                return;
-            }
-
-            maxCapacity *= multiplier;
-            current = Mathf.Min(current, maxCapacity);
-            NotifyInventoryChanged();
+            maxBottles = Mathf.Clamp(capacity, 0, AbsoluteMaxBottles);
+            currentBottles = Mathf.Clamp(bottles, 0, maxBottles);
+            _onBottleCountChanged?.Invoke(currentBottles);
+            _onCapacityChanged?.Invoke(maxBottles);
         }
 
-        private void NotifyInventoryChanged()
+        /// <summary>Resets inventory to locked, empty state for a new run.</summary>
+        public void ResetToDefault()
         {
-            _onAmountChanged?.Invoke();
-            _onInventoryChanged?.Invoke(FillPercent);
-        }
-
-        private void OnDisable()
-        {
-            _criticalLevelFired = false;
-        }
-
-        private void EvaluateLevelEvents(float previousAmount)
-        {
-            if (current <= 0f && previousAmount > 0f)
-            {
-                _onEmpty?.Invoke();
-            }
-
-            if (FillPercent <= CriticalThreshold && !_criticalLevelFired)
-            {
-                _criticalLevelFired = true;
-                _onCriticalLevel?.Invoke();
-            }
-            else if (FillPercent > CriticalThreshold)
-            {
-                _criticalLevelFired = false;
-            }
+            SetState(0, 0);
         }
     }
 }

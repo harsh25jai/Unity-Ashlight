@@ -45,7 +45,7 @@ namespace Ashlight.Ghost
         [SerializeField] private GhostSpawnManager spawnManager;
         [SerializeField] private FearSystem fearSystem;
         [SerializeField] private HolyWaterInventory holyWaterInventory;
-        [SerializeField] private float ritualCost = 0.4f;
+        [SerializeField] private int ritualBottleCost = 1;
         [SerializeField] private Canvas ritualPromptCanvas;
         [SerializeField] private ParticleSystem phaseTransitionEffect;
         [SerializeField] private ParticleSystem defeatEffect;
@@ -326,7 +326,7 @@ namespace Ashlight.Ghost
                 return;
             }
 
-            if (holyWaterInventory != null && holyWaterInventory.Spend(ritualCost))
+            if (TryConsumeRitualBottles())
             {
                 PerformRitual();
             }
@@ -528,8 +528,28 @@ namespace Ashlight.Ghost
         {
             if (_ritualPromptText != null)
             {
-                _ritualPromptText.text = $"Press F to perform ritual (costs {ritualCost:0} Holy Water)";
+                _ritualPromptText.text = $"Press F to perform ritual (costs {ritualBottleCost} Holy Water bottle)";
             }
+        }
+
+        private bool TryConsumeRitualBottles()
+        {
+            if (holyWaterInventory == null || ritualBottleCost <= 0)
+            {
+                return false;
+            }
+
+            if (holyWaterInventory.CurrentBottles < ritualBottleCost)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < ritualBottleCost; i++)
+            {
+                holyWaterInventory.ConsumeBottle();
+            }
+
+            return true;
         }
 
         private void UpdateRitualPromptFacing()

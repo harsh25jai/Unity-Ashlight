@@ -260,8 +260,9 @@ namespace Ashlight.Systems
                 case UpgradeEffect.HolyWaterCapacity:
                     if (holyWaterInventory != null)
                     {
-                        holyWaterInventory.AddMaxCapacity(upgrade.effectValue);
-                        holyWaterInventory.Replenish(upgrade.effectValue);
+                        int capacityGain = Mathf.Max(1, Mathf.RoundToInt(upgrade.effectValue));
+                        holyWaterInventory.IncreaseCapacity(capacityGain);
+                        holyWaterInventory.AddBottle();
                     }
                     break;
 
@@ -290,7 +291,7 @@ namespace Ashlight.Systems
                         playerStats.MultiplyCarryCapacity(1f + upgrade.effectValue / 100f);
                     }
 
-                    holyWaterInventory?.MultiplyMaxCapacity(1f + upgrade.effectValue / 100f);
+                    holyWaterInventory?.IncreaseCapacity(1);
                     break;
             }
         }

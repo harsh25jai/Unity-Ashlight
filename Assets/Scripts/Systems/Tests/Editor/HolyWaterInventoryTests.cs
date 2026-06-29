@@ -11,7 +11,7 @@ namespace Ashlight.Systems.Tests
         public void SetUp()
         {
             _inventory = ScriptableObject.CreateInstance<HolyWaterInventory>();
-            _inventory.ResetToFull();
+            _inventory.ResetToDefault();
         }
 
         [TearDown]
@@ -21,35 +21,59 @@ namespace Ashlight.Systems.Tests
         }
 
         [Test]
-        public void Spend_ReturnsFalseWhenInsufficient()
+        public void AddBottle_FailsWhenCapacityIsZero()
         {
-            Assert.IsFalse(_inventory.Spend(150f));
-            Assert.AreEqual(100f, _inventory.Current);
+            Assert.IsFalse(_inventory.AddBottle());
+            Assert.AreEqual(0, _inventory.CurrentBottles);
         }
 
         [Test]
-        public void Spend_ReducesCurrentAndClampsToZero()
+        public void IncreaseCapacity_AllowsPickupUpToAbsoluteMax()
         {
-            Assert.IsTrue(_inventory.Spend(100f));
-
-            Assert.AreEqual(0f, _inventory.Current);
+            _inventory.IncreaseCapacity(2);
+            Assert.IsTrue(_inventory.AddBottle());
+            Assert.IsTrue(_inventory.AddBottle());
+            Assert.IsFalse(_inventory.AddBottle());
+            Assert.AreEqual(2, _inventory.CurrentBottles);
         }
 
         [Test]
-        public void Replenish_ClampsToMaxCapacity()
+        public void ConsumeBottle_FiresCountChange()
         {
-            _inventory.Spend(50f);
-            _inventory.Replenish(100f);
+            _inventory.IncreaseCapacity(1);
+            _inventory.AddBottle();
 
-            Assert.AreEqual(100f, _inventory.Current);
+            Assert.IsTrue(_inventory.ConsumeBottle());
+            Assert.AreEqual(0, _inventory.CurrentBottles);
         }
 
         [Test]
-        public void FillPercent_ReturnsNormalizedValue()
+        public void BreakBottle_ReducesCountWithoutConsumeEventOverlap()
         {
-            _inventory.Spend(50f);
+            int brokenCount = 0;
+            _inventory.OnBottleBroken.AddListener(() => brokenCount++);
+            _inventory.IncreaseCapacity(1);
+            _inventory.AddBottle();
 
-            Assert.AreEqual(0.5f, _inventory.FillPercent, 0.001f);
+            Assert.IsTrue(_inventory.BreakBottle());
+            Assert.AreEqual(1, brokenCount);
+            Assert.AreEqual(0, _inventory.CurrentBottles);
+        }
+
+        [Test]
+        public void BottleFillPercent_ReturnsNormalizedValue()
+        {
+            _inventory.SetState(2, 4);
+
+            Assert.AreEqual(0.5f, _inventory.BottleFillPercent, 0.001f);
+        }
+
+        [Test]
+        public void IncreaseCapacity_ClampsToAbsoluteMax()
+        {
+            _inventory.IncreaseCapacity(10);
+
+            Assert.AreEqual(HolyWaterInventory.AbsoluteMaxBottles, _inventory.MaxBottles);
         }
     }
 }

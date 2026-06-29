@@ -14,9 +14,15 @@ namespace Ashlight.Systems
         public float playerPosY;
         public float playerPosZ;
         public float playerFaith;
-        public float holyWaterCurrent;
-        public float holyWaterMaxCapacity;
+        public int holyWaterBottles;
+        public int holyWaterMaxBottles;
         public float torchFuelCurrent;
+
+        /// <summary>Legacy float bottle count migrated to <see cref="holyWaterBottles"/>.</summary>
+        public float holyWaterCurrent;
+
+        /// <summary>Legacy float capacity migrated to <see cref="holyWaterMaxBottles"/>.</summary>
+        public float holyWaterMaxCapacity;
 
         /// <summary>Legacy save field migrated to <see cref="playerFaith"/>.</summary>
         public float playerHealth;

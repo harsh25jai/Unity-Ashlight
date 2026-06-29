@@ -270,35 +270,17 @@ namespace Ashlight.Environment
 
         private IEnumerator RefillHolyWaterRoutine()
         {
-            if (inventoryAsset == null || refillDuration <= 0f)
+            if (inventoryAsset == null)
             {
                 yield break;
             }
 
-            float targetAmount = inventoryAsset.MaxCapacity;
-            float fillRate = targetAmount / refillDuration;
-
-            while (inventoryAsset != null && inventoryAsset.Current < targetAmount)
+            while (inventoryAsset != null && inventoryAsset.AddBottle())
             {
-                float previousAmount = inventoryAsset.Current;
-                float nextAmount = Mathf.MoveTowards(previousAmount, targetAmount, fillRate * Time.deltaTime);
-                float delta = nextAmount - previousAmount;
-
-                if (delta > 0f)
-                {
-                    inventoryAsset.Replenish(delta);
-                }
-
-                yield return null;
-            }
-
-            if (inventoryAsset != null && inventoryAsset.Current < targetAmount)
-            {
-                inventoryAsset.Replenish(targetAmount - inventoryAsset.Current);
+                yield return new WaitForSeconds(refillDuration / Mathf.Max(1, inventoryAsset.MaxBottles));
             }
 
             _refillRoutine = null;
-            // Debug.Log($"{nameof(AltarInteraction)}: Holy Water refill complete at {name}.");
         }
 
         private void BeginCooldown()

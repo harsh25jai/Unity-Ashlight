@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace Ashlight.UI
 {
     /// <summary>
-    /// Display-only HUD slider bound to Holy Water inventory fill level.
+    /// Display-only HUD slider bound to Holy Water bottle fill level.
     /// </summary>
     [DisallowMultipleComponent]
     public class HolyWaterHUDBar : MonoBehaviour
@@ -38,48 +38,47 @@ namespace Ashlight.UI
         {
             if (inventory != null)
             {
-                inventory.OnInventoryChanged.AddListener(OnInventoryChanged);
+                inventory.OnBottleCountChanged.AddListener(OnBottleCountChanged);
+                inventory.OnCapacityChanged.AddListener(OnCapacityChanged);
             }
         }
 
         private void Start()
         {
-            if (waterSlider == null || inventory == null)
-            {
-                return;
-            }
-
-            waterSlider.value = GetNormalizedFill();
+            RefreshSlider();
         }
 
         private void OnDisable()
         {
             if (inventory != null)
             {
-                inventory.OnInventoryChanged.RemoveListener(OnInventoryChanged);
+                inventory.OnBottleCountChanged.RemoveListener(OnBottleCountChanged);
+                inventory.OnCapacityChanged.RemoveListener(OnCapacityChanged);
             }
         }
 
-        /// <summary>Updates the slider from a normalized inventory value.</summary>
-        /// <param name="normalized">Fill level from 0 to 1.</param>
-        public void OnInventoryChanged(float normalized)
+        /// <summary>Updates the slider when bottle count changes.</summary>
+        /// <param name="currentBottles">Current bottle count.</param>
+        public void OnBottleCountChanged(int currentBottles)
         {
-            if (waterSlider == null)
+            RefreshSlider();
+        }
+
+        /// <summary>Updates the slider when max capacity changes.</summary>
+        /// <param name="maxBottles">Maximum bottle capacity.</param>
+        public void OnCapacityChanged(int maxBottles)
+        {
+            RefreshSlider();
+        }
+
+        private void RefreshSlider()
+        {
+            if (waterSlider == null || inventory == null)
             {
                 return;
             }
 
-            waterSlider.value = Mathf.Clamp01(normalized);
-        }
-
-        private float GetNormalizedFill()
-        {
-            if (inventory == null || inventory.MaxCapacity <= 0f)
-            {
-                return 0f;
-            }
-
-            return inventory.Current / inventory.MaxCapacity;
+            waterSlider.value = inventory.BottleFillPercent;
         }
     }
 }

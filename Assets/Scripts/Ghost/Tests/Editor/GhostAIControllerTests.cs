@@ -10,5 +10,11 @@ namespace Ashlight.Ghost.Tests
             Assert.IsTrue(GhostAIController.ShouldRetreatFromLight(0.8f, 0.7f));
             Assert.IsFalse(GhostAIController.ShouldRetreatFromLight(0.6f, 0.7f));
         }
+
+        [Test]
+        public void ForceInstantDeath_MethodExists()
+        {
+            Assert.NotNull(typeof(GhostAIController).GetMethod(nameof(GhostAIController.ForceInstantDeath)));
+        }
     }
 }

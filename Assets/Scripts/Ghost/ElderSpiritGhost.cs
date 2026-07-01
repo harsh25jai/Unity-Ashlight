@@ -169,6 +169,28 @@ namespace Ashlight.Ghost
         }
 
         /// <inheritdoc />
+        public override void ForceInstantDeath()
+        {
+            if (_teleportRoutine != null)
+            {
+                StopCoroutine(_teleportRoutine);
+                _teleportRoutine = null;
+            }
+
+            if (_ritualRoutine != null)
+            {
+                StopCoroutine(_ritualRoutine);
+                _ritualRoutine = null;
+            }
+
+            _isPerformingRitual = false;
+            _isTeleporting = false;
+            fearSystem?.ClearMinimumFearFloor();
+            SetRitualPromptVisible(false);
+            base.ForceInstantDeath();
+        }
+
+        /// <inheritdoc />
         protected override void Update()
         {
             if (_currentElderPhase == ElderPhase.Defeated)

@@ -1040,7 +1040,7 @@ GameObject:
   - component: {fileID: 554874571}
   - component: {fileID: 554874570}
   - component: {fileID: 554874574}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Church
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1157,6 +1157,21 @@ MonoBehaviour:
   ghostSpawnManager: {fileID: 1060434979}
   safeZoneCollider: {fileID: 554874570}
   useProximityFallback: 1
+  ghostLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  baseScreamSound: {fileID: 0}
+  ghostDeathEffect: {fileID: 0}
+  wandererScreamPitch: 1
+  stalkerScreamPitch: 0.85
+  wraithScreamPitch: 1.3
+  hollowScreamPitch: 0.6
+  elderScreamPitch: 0.4
+  wandererScreamGroup: {fileID: 0}
+  stalkerScreamGroup: {fileID: 0}
+  wraithScreamGroup: {fileID: 0}
+  hollowScreamGroup: {fileID: 0}
+  elderScreamGroup: {fileID: 0}
   _onPlayerEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -2447,7 +2462,7 @@ GameObject:
   - component: {fileID: 1007581998}
   - component: {fileID: 1007581997}
   - component: {fileID: 1007581996}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Church_Candle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2470,6 +2485,21 @@ MonoBehaviour:
   ghostSpawnManager: {fileID: 1060434979}
   safeZoneCollider: {fileID: 1007581997}
   useProximityFallback: 1
+  ghostLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  baseScreamSound: {fileID: 0}
+  ghostDeathEffect: {fileID: 0}
+  wandererScreamPitch: 1
+  stalkerScreamPitch: 0.85
+  wraithScreamPitch: 1.3
+  hollowScreamPitch: 0.6
+  elderScreamPitch: 0.4
+  wandererScreamGroup: {fileID: 0}
+  stalkerScreamGroup: {fileID: 0}
+  wraithScreamGroup: {fileID: 0}
+  hollowScreamGroup: {fileID: 0}
+  elderScreamGroup: {fileID: 0}
   _onPlayerEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -3496,7 +3526,7 @@ GameObject:
   - component: {fileID: 1468424875}
   - component: {fileID: 1468424874}
   - component: {fileID: 1468424873}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Church_Priest
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3519,6 +3549,21 @@ MonoBehaviour:
   ghostSpawnManager: {fileID: 1060434979}
   safeZoneCollider: {fileID: 1468424874}
   useProximityFallback: 1
+  ghostLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  baseScreamSound: {fileID: 0}
+  ghostDeathEffect: {fileID: 0}
+  wandererScreamPitch: 1
+  stalkerScreamPitch: 0.85
+  wraithScreamPitch: 1.3
+  hollowScreamPitch: 0.6
+  elderScreamPitch: 0.4
+  wandererScreamGroup: {fileID: 0}
+  stalkerScreamGroup: {fileID: 0}
+  wraithScreamGroup: {fileID: 0}
+  hollowScreamGroup: {fileID: 0}
+  elderScreamGroup: {fileID: 0}
   _onPlayerEntered:
     m_PersistentCalls:
       m_Calls: []
@@ -4253,7 +4298,7 @@ GameObject:
   - component: {fileID: 1714307432}
   - component: {fileID: 1714307431}
   - component: {fileID: 1714307430}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Church_HolyWater
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4276,6 +4321,21 @@ MonoBehaviour:
   ghostSpawnManager: {fileID: 1060434979}
   safeZoneCollider: {fileID: 1714307431}
   useProximityFallback: 1
+  ghostLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  baseScreamSound: {fileID: 0}
+  ghostDeathEffect: {fileID: 0}
+  wandererScreamPitch: 1
+  stalkerScreamPitch: 0.85
+  wraithScreamPitch: 1.3
+  hollowScreamPitch: 0.6
+  elderScreamPitch: 0.4
+  wandererScreamGroup: {fileID: 0}
+  stalkerScreamGroup: {fileID: 0}
+  wraithScreamGroup: {fileID: 0}
+  hollowScreamGroup: {fileID: 0}
+  elderScreamGroup: {fileID: 0}
   _onPlayerEntered:
     m_PersistentCalls:
       m_Calls: []

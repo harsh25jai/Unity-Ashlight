@@ -75,6 +75,7 @@ namespace Ashlight.Ghost
         private bool _isActive;
         private bool _isPerishing;
         private Coroutine _perishCoroutine;
+        private Coroutine _returnToPoolCoroutine;
 
         /// <summary>Gets the assigned ghost type definition.</summary>
         public GhostTypeDefinition GhostType => ghostType;
@@ -322,6 +323,12 @@ namespace Ashlight.Ghost
                 _perishCoroutine = null;
             }
 
+            if (_returnToPoolCoroutine != null)
+            {
+                StopCoroutine(_returnToPoolCoroutine);
+                _returnToPoolCoroutine = null;
+            }
+
             SetAgentStopped(true);
             ResetAgentPath();
             _currentState = GhostState.Idle;
@@ -349,6 +356,39 @@ namespace Ashlight.Ghost
             }
 
             ChangeState(GhostState.Retreat);
+        }
+
+        /// <summary>
+        /// Instantly removes this ghost from play without faith rewards or normal perish effects.
+        /// </summary>
+        public virtual void ForceInstantDeath()
+        {
+            if (_returnToPoolCoroutine != null)
+            {
+                return;
+            }
+
+            if (_perishCoroutine != null)
+            {
+                StopCoroutine(_perishCoroutine);
+                _perishCoroutine = null;
+            }
+
+            _isPerishing = true;
+            _isActive = false;
+            SetAgentStopped(true);
+            ResetAgentPath();
+
+            currentGhostHealth = 0f;
+            _currentState = GhostState.Perish;
+            UpdateHealthBar();
+
+            if (ghostRenderer != null)
+            {
+                ghostRenderer.enabled = false;
+            }
+
+            _returnToPoolCoroutine = StartCoroutine(ReturnToPoolAfterDelay(0.3f));
         }
 
         /// <summary>Applies torch damage to this ghost.</summary>
@@ -594,6 +634,30 @@ namespace Ashlight.Ghost
             _isPerishing = false;
             _perishCoroutine = null;
             Deactivate();
+        }
+
+        private IEnumerator ReturnToPoolAfterDelay(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+
+            gameObject.SetActive(false);
+            currentGhostHealth = maxGhostHealth;
+            UpdateHealthBar();
+
+            if (ghostRenderer != null)
+            {
+                ghostRenderer.enabled = true;
+            }
+
+            _isPerishing = false;
+            _returnToPoolCoroutine = null;
+
+            if (_navMeshAgent != null)
+            {
+                _navMeshAgent.enabled = false;
+            }
+
+            _currentState = GhostState.Idle;
         }
 
         /// <summary>Spawns a faith orb at the ghost's death position when configured.</summary>

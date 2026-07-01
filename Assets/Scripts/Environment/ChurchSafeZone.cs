@@ -4,6 +4,7 @@ using Ashlight.Ghost;
 using Ashlight.Player;
 using Ashlight.Systems;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Events;
 
 namespace Ashlight.Environment
@@ -34,6 +35,23 @@ namespace Ashlight.Environment
         [SerializeField] private GhostSpawnManager ghostSpawnManager;
         [SerializeField] private BoxCollider safeZoneCollider;
         [SerializeField] private bool useProximityFallback = true;
+        [SerializeField] private LayerMask ghostLayerMask;
+        [SerializeField] private AudioClip baseScreamSound;
+        [SerializeField] private ParticleSystem ghostDeathEffect;
+
+        [Header("Scream Pitch Variation Per Ghost Type")]
+        [SerializeField] private float wandererScreamPitch = 1f;
+        [SerializeField] private float stalkerScreamPitch = 0.85f;
+        [SerializeField] private float wraithScreamPitch = 1.3f;
+        [SerializeField] private float hollowScreamPitch = 0.6f;
+        [SerializeField] private float elderScreamPitch = 0.4f;
+
+        [Header("Scream Filter Variation Per Ghost Type")]
+        [SerializeField] private AudioMixerGroup wandererScreamGroup;
+        [SerializeField] private AudioMixerGroup stalkerScreamGroup;
+        [SerializeField] private AudioMixerGroup wraithScreamGroup;
+        [SerializeField] private AudioMixerGroup hollowScreamGroup;
+        [SerializeField] private AudioMixerGroup elderScreamGroup;
 
         [Header("Events")]
         [SerializeField] private UnityEvent _onPlayerEntered;
@@ -124,12 +142,20 @@ namespace Ashlight.Environment
 
         private void OnTriggerEnter(Collider other)
         {
-            if (!other.CompareTag("Player"))
+            if (other.CompareTag("Player"))
             {
-                return;
+                ProcessPlayerEnter(other);
             }
 
-            ProcessPlayerEnter(other);
+            if (IsGhostLayer(other.gameObject.layer))
+            {
+                GhostAIController ghost = other.GetComponent<GhostAIController>()
+                    ?? other.GetComponentInParent<GhostAIController>();
+                if (ghost != null)
+                {
+                    HandleGhostEnteredSanctuary(ghost);
+                }
+            }
         }
 
         private void OnTriggerExit(Collider other)
@@ -261,6 +287,79 @@ namespace Ashlight.Environment
 
                 yield return null;
             }
+        }
+
+        private bool IsGhostLayer(int layer)
+        {
+            return ((1 << layer) & ghostLayerMask) != 0;
+        }
+
+        private void HandleGhostEnteredSanctuary(GhostAIController ghost)
+        {
+            if (ghost == null)
+            {
+                return;
+            }
+
+            float pitch = wandererScreamPitch;
+            AudioMixerGroup mixerGroup = wandererScreamGroup;
+
+            if (ghost is StalkerGhost)
+            {
+                pitch = stalkerScreamPitch;
+                mixerGroup = stalkerScreamGroup;
+            }
+            else if (ghost is WraithGhost)
+            {
+                pitch = wraithScreamPitch;
+                mixerGroup = wraithScreamGroup;
+            }
+            else if (ghost is HollowGhost)
+            {
+                pitch = hollowScreamPitch;
+                mixerGroup = hollowScreamGroup;
+            }
+            else if (ghost is ElderSpiritGhost)
+            {
+                pitch = elderScreamPitch;
+                mixerGroup = elderScreamGroup;
+            }
+
+            PlaySanctuaryScream(ghost.transform.position, pitch, mixerGroup);
+
+            if (ghostDeathEffect != null)
+            {
+                ParticleSystem effectInstance = Instantiate(
+                    ghostDeathEffect,
+                    ghost.transform.position,
+                    Quaternion.identity);
+                effectInstance.Play();
+            }
+
+            ghost.ForceInstantDeath();
+        }
+
+        private void PlaySanctuaryScream(Vector3 position, float pitch, AudioMixerGroup mixerGroup)
+        {
+            if (baseScreamSound == null)
+            {
+                return;
+            }
+
+            GameObject tempAudio = new GameObject("SanctuaryScream");
+            tempAudio.transform.position = position;
+            AudioSource source = tempAudio.AddComponent<AudioSource>();
+            source.clip = baseScreamSound;
+            source.pitch = pitch;
+            source.spatialBlend = 1f;
+
+            if (mixerGroup != null)
+            {
+                source.outputAudioMixerGroup = mixerGroup;
+            }
+
+            source.Play();
+            Destroy(tempAudio, baseScreamSound.length / Mathf.Max(pitch, 0.01f) + 0.5f);
         }
     }
 }

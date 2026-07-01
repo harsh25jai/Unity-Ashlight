@@ -3,6 +3,8 @@ using Ashlight.Environment;
 using Ashlight.Player;
 using Ashlight.Systems;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 using UnityEngine.UIElements;
@@ -36,6 +38,8 @@ namespace Ashlight.UI
         [SerializeField] private PlayerFaith playerFaith;
         [SerializeField] private SaveSystem saveSystem;
         [SerializeField] private ChurchSafeZone churchSafeZone;
+        [SerializeField] private IsometricCameraController cameraController;
+        [SerializeField] private Volume postProcessVolume;
         [SerializeField] private string mainMenuSceneName = MainMenuSceneName;
 
         private UIDocument _uiDocument;
@@ -49,6 +53,7 @@ namespace Ashlight.UI
 
         private float _currentFear;
         private Coroutine _damageFlashRoutine;
+        private Coroutine _grabShakeCoroutine;
         private Transform _playerTransform;
 
         /// <summary>
@@ -185,6 +190,16 @@ namespace Ashlight.UI
             {
                 churchSafeZone = FindAnyObjectByType<ChurchSafeZone>();
             }
+
+            if (cameraController == null)
+            {
+                cameraController = FindAnyObjectByType<IsometricCameraController>();
+            }
+
+            if (postProcessVolume == null)
+            {
+                postProcessVolume = FindAnyObjectByType<Volume>();
+            }
         }
 
         private void OnEnable()
@@ -199,6 +214,14 @@ namespace Ashlight.UI
         private void OnDisable()
         {
             UnbindEvents();
+
+            if (_grabShakeCoroutine != null)
+            {
+                StopCoroutine(_grabShakeCoroutine);
+                _grabShakeCoroutine = null;
+            }
+
+            fearSystem?.SetPostProcessSuppressed(false);
         }
 
         private void Update()
@@ -392,6 +415,75 @@ namespace Ashlight.UI
             {
                 _nightCounterLabel.text = FormatNightCount(dayNightCycle.NightCycleCount);
                 _nightCounterLabel.style.color = NightCounterGrey;
+            }
+        }
+
+        /// <summary>Applies maximum grab struggle screen effects when a Grabber seizes the player.</summary>
+        public void OnGrabStarted()
+        {
+            fearSystem?.SetPostProcessSuppressed(true);
+            SetVignetteIntensity(0.8f);
+            SetChromaticAberration(0.8f);
+
+            if (_grabShakeCoroutine != null)
+            {
+                StopCoroutine(_grabShakeCoroutine);
+            }
+
+            _grabShakeCoroutine = StartCoroutine(GrabShakeLoop());
+        }
+
+        /// <summary>Restores fear-driven post-processing after a Grabber releases the player.</summary>
+        public void OnGrabReleased()
+        {
+            if (_grabShakeCoroutine != null)
+            {
+                StopCoroutine(_grabShakeCoroutine);
+                _grabShakeCoroutine = null;
+            }
+
+            fearSystem?.SetPostProcessSuppressed(false);
+            float fearVignette = fearSystem != null ? fearSystem.CurrentFear * 0.5f : 0f;
+            SetVignetteIntensity(fearVignette);
+            SetChromaticAberration(0f);
+        }
+
+        private IEnumerator GrabShakeLoop()
+        {
+            while (true)
+            {
+                if (cameraController != null)
+                {
+                    cameraController.CameraShake(0.12f, 0.25f);
+                }
+
+                yield return new WaitForSeconds(0.3f);
+            }
+        }
+
+        private void SetVignetteIntensity(float intensity)
+        {
+            if (postProcessVolume == null || postProcessVolume.profile == null)
+            {
+                return;
+            }
+
+            if (postProcessVolume.profile.TryGet(out Vignette vignette))
+            {
+                vignette.intensity.value = intensity;
+            }
+        }
+
+        private void SetChromaticAberration(float intensity)
+        {
+            if (postProcessVolume == null || postProcessVolume.profile == null)
+            {
+                return;
+            }
+
+            if (postProcessVolume.profile.TryGet(out ChromaticAberration chromaticAberration))
+            {
+                chromaticAberration.intensity.value = intensity;
             }
         }
     }

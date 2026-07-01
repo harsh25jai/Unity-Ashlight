@@ -42,6 +42,7 @@ namespace Ashlight.Player
         private float _currentSpeed;
         private float _staminaDrainMultiplier = 1f;
         private float _fearStaminaMultiplier = 1f;
+        private float _movementMultiplier = 1f;
 
         /// <summary>Gets whether the player is currently providing movement input.</summary>
         public bool IsMoving => _moveInput.sqrMagnitude > MoveInputThreshold;
@@ -67,6 +68,13 @@ namespace Ashlight.Player
         public void SetFearStaminaMultiplier(float multiplier)
         {
             _fearStaminaMultiplier = Mathf.Clamp(multiplier, 1f, 2f);
+        }
+
+        /// <summary>Scales horizontal movement while grabbed or otherwise impaired.</summary>
+        /// <param name="multiplier">Movement scale from 0 to 1.</param>
+        public void SetMovementMultiplier(float multiplier)
+        {
+            _movementMultiplier = Mathf.Clamp(multiplier, 0f, 1f);
         }
 
         /// <summary>Adds stamina up to the player's maximum.</summary>
@@ -250,7 +258,7 @@ namespace Ashlight.Player
                 _verticalVelocity += _gravity * Time.deltaTime;
             }
 
-            Vector3 horizontalVelocity = worldDirection * speed;
+            Vector3 horizontalVelocity = worldDirection * speed * _movementMultiplier;
             Vector3 velocity = new Vector3(horizontalVelocity.x, _verticalVelocity, horizontalVelocity.z);
             _characterController.Move(velocity * Time.deltaTime);
         }

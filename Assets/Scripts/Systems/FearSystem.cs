@@ -40,6 +40,7 @@ namespace Ashlight.Systems
         private float _fearTarget;
         private float _cameraShakeCooldownTimer;
         private float _minimumFearFloor;
+        private bool _suppressPostProcessEffects;
         private Coroutine _ghostScanRoutine;
 
         /// <summary>Gets the smoothed fear level from 0 to 1.</summary>
@@ -59,6 +60,13 @@ namespace Ashlight.Systems
         public void ClearMinimumFearFloor()
         {
             _minimumFearFloor = 0f;
+        }
+
+        /// <summary>Prevents fear-driven vignette updates while grab screen effects are active.</summary>
+        /// <param name="suppress">Whether fear post-processing should be suppressed.</param>
+        public void SetPostProcessSuppressed(bool suppress)
+        {
+            _suppressPostProcessEffects = suppress;
         }
 
         private void Awake()
@@ -218,7 +226,11 @@ namespace Ashlight.Systems
 
         private void ApplyFearEffects(float fear)
         {
-            ApplyVignette(fear);
+            if (!_suppressPostProcessEffects)
+            {
+                ApplyVignette(fear);
+            }
+
             holyTorch?.SetFearMultiplier(fear);
             playerController?.SetFearStaminaMultiplier(Mathf.Lerp(1f, 2f, fear));
         }

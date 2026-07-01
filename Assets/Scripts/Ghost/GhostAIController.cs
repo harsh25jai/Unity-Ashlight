@@ -21,7 +21,8 @@ namespace Ashlight.Ghost
         Attack,
         Retreat,
         Recharge,
-        Perish
+        Perish,
+        Grabbing
     }
 
     /// <summary>
@@ -195,7 +196,7 @@ namespace Ashlight.Ghost
 
         /// <summary>Assigns the player target at runtime.</summary>
         /// <param name="playerTransform">Player transform to track.</param>
-        public void SetPlayer(Transform playerTransform)
+        public virtual void SetPlayer(Transform playerTransform)
         {
             player = playerTransform;
 
@@ -239,6 +240,7 @@ namespace Ashlight.Ghost
             if (_currentState != GhostState.Retreat &&
                 _currentState != GhostState.Recharge &&
                 _currentState != GhostState.Perish &&
+                _currentState != GhostState.Grabbing &&
                 ShouldRetreat())
             {
                 ChangeState(GhostState.Retreat);
@@ -266,6 +268,9 @@ namespace Ashlight.Ghost
                     break;
                 case GhostState.Recharge:
                     UpdateRecharge();
+                    break;
+                case GhostState.Grabbing:
+                    UpdateGrabbing();
                     break;
             }
         }
@@ -492,7 +497,8 @@ namespace Ashlight.Ghost
             if (_currentState == GhostState.Retreat ||
                 _currentState == GhostState.Recharge ||
                 _currentState == GhostState.Attack ||
-                _currentState == GhostState.Perish)
+                _currentState == GhostState.Perish ||
+                _currentState == GhostState.Grabbing)
             {
                 return;
             }
@@ -731,6 +737,9 @@ namespace Ashlight.Ghost
                 case GhostState.Recharge:
                     EnterRecharge();
                     break;
+                case GhostState.Grabbing:
+                    EnterGrabbing();
+                    break;
             }
         }
 
@@ -758,6 +767,9 @@ namespace Ashlight.Ghost
                     break;
                 case GhostState.Recharge:
                     ExitRecharge();
+                    break;
+                case GhostState.Grabbing:
+                    ExitGrabbing();
                     break;
             }
         }
@@ -996,6 +1008,23 @@ namespace Ashlight.Ghost
             {
                 ghostRenderer.material.color = _baseRendererColor;
             }
+        }
+
+        /// <summary>Enters the grabbing state.</summary>
+        protected virtual void EnterGrabbing()
+        {
+            SetAgentStopped(true);
+        }
+
+        /// <summary>Updates grabbing behavior.</summary>
+        protected virtual void UpdateGrabbing()
+        {
+        }
+
+        /// <summary>Exits the grabbing state.</summary>
+        protected virtual void ExitGrabbing()
+        {
+            SetAgentStopped(false);
         }
 
         /// <summary>Applies a pulsing recharge visual.</summary>

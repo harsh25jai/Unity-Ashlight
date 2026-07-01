@@ -31,5 +31,11 @@ namespace Ashlight.Player.Tests
 
             Assert.AreEqual(1f, result.magnitude, 0.001f);
         }
+
+        [Test]
+        public void SetMovementMultiplier_MethodExists()
+        {
+            Assert.NotNull(typeof(PlayerController).GetMethod(nameof(PlayerController.SetMovementMultiplier)));
+        }
     }
 }

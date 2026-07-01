@@ -2840,6 +2840,8 @@ MonoBehaviour:
   playerFaith: {fileID: 1714774880}
   saveSystem: {fileID: 0}
   churchSafeZone: {fileID: 554874574}
+  cameraController: {fileID: 0}
+  postProcessVolume: {fileID: 0}
   mainMenuSceneName: MainMenu
 --- !u!114 &1040428202
 MonoBehaviour:
@@ -2951,6 +2953,10 @@ MonoBehaviour:
     prefab: {fileID: -5283244756298814926, guid: e49a401c11216477495ef84e52dd1dfc, type: 3}
     poolSize: 3
     spawnWeight: 2
+  - ghostName: Ghost_Grabber
+    prefab: {fileID: 3071149052669637304, guid: e048d75e7e8f74b8cbbc77c374117047, type: 3}
+    poolSize: 2
+    spawnWeight: 1.5
   spawnPoints:
   - point: {fileID: 348680352}
     weight: 0

@@ -27,11 +27,49 @@ namespace Ashlight.Environment.Tests
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?.SetValue(cycle, config);
 
-            float expected = 480f + 120f + 300f + 120f + 120f;
+            float expected = 120f + 120f + 120f + 300f + 120f;
             Assert.AreEqual(expected, cycle.GetTotalCycleDuration(0), 0.001f);
 
             Object.DestroyImmediate(cycleObject);
             Object.DestroyImmediate(config);
+        }
+
+        [Test]
+        public void ForcePhase_AndSetTimeScale_MethodsExist()
+        {
+            Assert.NotNull(typeof(DayNightCycle).GetMethod(nameof(DayNightCycle.ForcePhase)));
+            Assert.NotNull(typeof(DayNightCycle).GetMethod(nameof(DayNightCycle.SetTimeScale)));
+        }
+
+        [Test]
+        public void RemainingPhaseTime_PropertyExists()
+        {
+            Assert.NotNull(typeof(DayNightCycle).GetProperty(nameof(DayNightCycle.RemainingPhaseTime)));
+        }
+
+        [Test]
+        public void TimeScale_PropertyExists()
+        {
+            Assert.NotNull(typeof(DayNightCycle).GetProperty(nameof(DayNightCycle.TimeScale)));
+        }
+
+        [Test]
+        public void DirectionalLight_PropertyExists()
+        {
+            Assert.NotNull(typeof(DayNightCycle).GetProperty(nameof(DayNightCycle.DirectionalLight)));
+        }
+
+        [Test]
+        public void SetNormalizedTime_MethodExists()
+        {
+            Assert.NotNull(typeof(DayNightCycle).GetMethod(nameof(DayNightCycle.SetNormalizedTime)));
+        }
+
+        [Test]
+        public void GetSunElevation_AndGetSunAzimuth_MethodsExist()
+        {
+            Assert.NotNull(typeof(DayNightCycle).GetMethod(nameof(DayNightCycle.GetSunElevation)));
+            Assert.NotNull(typeof(DayNightCycle).GetMethod(nameof(DayNightCycle.GetSunAzimuth)));
         }
     }
 }

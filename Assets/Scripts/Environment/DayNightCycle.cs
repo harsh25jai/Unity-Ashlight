@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 namespace Ashlight.Environment
 {
@@ -27,18 +28,28 @@ namespace Ashlight.Environment
     [DisallowMultipleComponent]
     public class DayNightCycle : MonoBehaviour
     {
-        private const float NightDeepBaseDuration = 120f;
+        private const float NightDeepDebugFraction = 0.75f;
 
         [SerializeField] private DayNightConfig _config;
         [SerializeField] private Light _directionalLight;
         [SerializeField] private bool startAtDay = true;
         [SerializeField] private float timeScale = 1f;
+        [SerializeField] public bool pauseCycleForDebug = false;
 
         [Header("Curves")]
         [SerializeField] private AnimationCurve _lightIntensityCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
         [SerializeField] private Gradient _lightColorGradient = new Gradient();
-        [SerializeField] private AnimationCurve _fogDensityCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
-        [SerializeField] private Gradient _ambientLightGradient = new Gradient();
+        [FormerlySerializedAs("_fogDensityCurve")]
+        [SerializeField] private AnimationCurve fogDensityCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+        [FormerlySerializedAs("_ambientLightGradient")]
+        [SerializeField] private Gradient ambientColorGradient = new Gradient();
+        [SerializeField] private Gradient fogColorGradient = new Gradient();
+
+        [Header("Skybox")]
+        [SerializeField] private Material skyboxMaterial;
+        [SerializeField] private AnimationCurve skyboxExposureCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+        [SerializeField] private AnimationCurve sunElevationCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+        [SerializeField] private AnimationCurve sunAzimuthCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
 
         [Header("Events")]
         [SerializeField] private DayNightPhaseChangedEvent _onPhaseChanged;
@@ -47,6 +58,7 @@ namespace Ashlight.Environment
         private float _phaseElapsed;
         private float _cycleElapsed;
         private int _nightCycleCount;
+        private int _lastBuiltNightCycleCount = -1;
 
         /// <summary>Gets the current phase.</summary>
         public DayNightPhase CurrentPhase => _currentPhase;
@@ -62,8 +74,69 @@ namespace Ashlight.Environment
         /// <summary>Gets elapsed time in the current day/night cycle.</summary>
         public float CycleElapsed => _cycleElapsed;
 
+        /// <summary>Gets the cycle time scale multiplier.</summary>
+        public float TimeScale => timeScale;
+
+        /// <summary>Gets remaining seconds in the current phase.</summary>
+        public float RemainingPhaseTime
+        {
+            get
+            {
+                float phaseDuration = GetPhaseDuration(_currentPhase, _nightCycleCount);
+                return Mathf.Max(0f, phaseDuration - _phaseElapsed);
+            }
+        }
+
+        /// <summary>Gets the total duration of the current phase in seconds.</summary>
+        public float CurrentPhaseDuration => GetPhaseDuration(_currentPhase, _nightCycleCount);
+
+        /// <summary>Gets progress through the current phase from 0 at start to 1 at end.</summary>
+        public float CurrentPhaseProgress
+        {
+            get
+            {
+                float phaseDuration = CurrentPhaseDuration;
+                return phaseDuration > 0f
+                    ? Mathf.Clamp01(1f - RemainingPhaseTime / phaseDuration)
+                    : 0f;
+            }
+        }
+
         /// <summary>Invoked on every phase transition.</summary>
         public DayNightPhaseChangedEvent OnPhaseChanged => _onPhaseChanged;
+
+        /// <summary>Gets the directional light driven by this cycle.</summary>
+        public Light DirectionalLight => _directionalLight;
+
+        /// <summary>Gets the day/night configuration asset.</summary>
+        public DayNightConfig Config => _config;
+
+        /// <summary>Gets the sun/moon elevation in degrees at the current normalized time.</summary>
+        public float GetSunElevation() => sunElevationCurve.Evaluate(NormalizedDayTime);
+
+        /// <summary>Gets the sun/moon azimuth in degrees at the current normalized time.</summary>
+        public float GetSunAzimuth() => sunAzimuthCurve.Evaluate(NormalizedDayTime);
+
+        /// <summary>Gets the normalized midpoint of a phase for the current night count.</summary>
+        /// <param name="phase">Target phase.</param>
+        /// <returns>Normalized cycle time from 0 to 1.</returns>
+        public float GetPhaseMidpointNormalized(DayNightPhase phase)
+        {
+            return _config != null
+                ? _config.GetPhaseMidpointNormalized(phase, _nightCycleCount)
+                : 0f;
+        }
+
+        /// <summary>Gets a normalized cycle time at a fraction through a phase.</summary>
+        /// <param name="phase">Target phase.</param>
+        /// <param name="phaseFraction">Progress through the phase from 0 to 1.</param>
+        /// <returns>Normalized cycle time from 0 to 1.</returns>
+        public float GetPhaseNormalizedTime(DayNightPhase phase, float phaseFraction)
+        {
+            return _config != null
+                ? _config.GetPhaseNormalizedTime(phase, phaseFraction, _nightCycleCount)
+                : 0f;
+        }
 
         private void Awake()
         {
@@ -86,8 +159,61 @@ namespace Ashlight.Environment
                 return;
             }
 
-            EnsureDefaultGradients();
-            InitializeCycle();
+            RebuildCurvesFromConfig(force: true);
+        }
+
+        /// <summary>
+        /// Rebuilds runtime lighting curves from <see cref="_config"/> for the current night count.
+        /// </summary>
+        /// <param name="force">When true, rebuilds even if curves are already cached for this night count.</param>
+        public void RebuildCurvesFromConfig(bool force = false)
+        {
+            if (_config == null)
+            {
+                return;
+            }
+
+            if (!force &&
+                _nightCycleCount == _lastBuiltNightCycleCount &&
+                _lightIntensityCurve != null)
+            {
+                return;
+            }
+
+            _lastBuiltNightCycleCount = _nightCycleCount;
+
+            DayNightLightingCurves curves = _config.BuildLightingCurves(_nightCycleCount);
+            _lightIntensityCurve = curves.LightIntensity;
+            _lightColorGradient = curves.LightColor;
+            ambientColorGradient = curves.AmbientColor;
+            fogDensityCurve = curves.FogDensity;
+            fogColorGradient = curves.FogColor;
+            skyboxExposureCurve = curves.SkyboxExposure;
+            sunElevationCurve = curves.SunElevation;
+            sunAzimuthCurve = curves.SunAzimuth;
+        }
+
+        private void Start()
+        {
+            if (_config == null || _directionalLight == null)
+            {
+                return;
+            }
+
+            _nightCycleCount = 0;
+
+            if (startAtDay)
+            {
+                BeginAtDayMidpoint();
+            }
+            else
+            {
+                BeginAtNightEarly();
+            }
+
+            Debug.Log(
+                $"DayNightCycle started. NormalizedDayTime: {NormalizedDayTime}, Phase: {_currentPhase}",
+                this);
         }
 
         private void Update()
@@ -97,19 +223,22 @@ namespace Ashlight.Environment
                 return;
             }
 
-            float deltaTime = Time.deltaTime * Mathf.Max(0f, timeScale);
-            _phaseElapsed += deltaTime;
-            _cycleElapsed += deltaTime;
-
-            float phaseDuration = GetPhaseDuration(_currentPhase, _nightCycleCount);
-            while (phaseDuration > 0f && _phaseElapsed >= phaseDuration)
+            if (!pauseCycleForDebug)
             {
-                _phaseElapsed -= phaseDuration;
-                AdvancePhase();
-                phaseDuration = GetPhaseDuration(_currentPhase, _nightCycleCount);
-            }
+                float deltaTime = Time.deltaTime * Mathf.Max(0f, timeScale);
+                _phaseElapsed += deltaTime;
+                _cycleElapsed += deltaTime;
 
-            ApplyEnvironmentSettings();
+                float phaseDuration = GetPhaseDuration(_currentPhase, _nightCycleCount);
+                while (phaseDuration > 0f && _phaseElapsed >= phaseDuration)
+                {
+                    _phaseElapsed -= phaseDuration;
+                    AdvancePhase();
+                    phaseDuration = GetPhaseDuration(_currentPhase, _nightCycleCount);
+                }
+
+                UpdateLighting(NormalizedDayTime);
+            }
         }
 
         /// <summary>
@@ -139,14 +268,44 @@ namespace Ashlight.Environment
             return _config.DayDuration
                 + _config.DuskDuration
                 + _config.NightEarlyDuration
-                + CalculateNightDeepDuration(nightCycleCount, NightDeepBaseDuration, _config.NightGrowthMultiplier)
+                + CalculateNightDeepDuration(nightCycleCount, _config.NightDeepDuration, _config.NightGrowthMultiplier)
                 + _config.DawnDuration;
         }
 
         /// <summary>Resets the cycle to a fresh day start.</summary>
         public void ResetCycle()
         {
-            InitializeCycle();
+            if (startAtDay)
+            {
+                BeginAtDayMidpoint();
+            }
+            else
+            {
+                BeginAtNightEarly();
+            }
+        }
+
+        /// <summary>Forces the cycle into a phase and snaps lighting to its normalized time.</summary>
+        /// <param name="phase">Target day/night phase.</param>
+        public void ForcePhase(DayNightPhase phase)
+        {
+            if (_config == null)
+            {
+                return;
+            }
+
+            float normalizedTime = phase == DayNightPhase.Night_Deep
+                ? _config.GetPhaseNormalizedTime(phase, NightDeepDebugFraction, _nightCycleCount)
+                : _config.GetPhaseMidpointNormalized(phase, _nightCycleCount);
+
+            SetNormalizedTime(normalizedTime);
+        }
+
+        /// <summary>Sets the day/night cycle time scale multiplier.</summary>
+        /// <param name="scale">Time scale from 0 upward.</param>
+        public void SetTimeScale(float scale)
+        {
+            timeScale = Mathf.Max(0f, scale);
         }
 
         /// <summary>Restores saved night progression and elapsed cycle time.</summary>
@@ -160,6 +319,7 @@ namespace Ashlight.Environment
             }
 
             _nightCycleCount = Mathf.Max(0, nightCycleCount);
+            RebuildCurvesFromConfig();
             float totalDuration = GetTotalCycleDuration(_nightCycleCount);
             _cycleElapsed = totalDuration > 0f
                 ? Mathf.Clamp(cycleElapsed, 0f, totalDuration - 0.001f)
@@ -200,16 +360,14 @@ namespace Ashlight.Environment
             ApplyEnvironmentSettings();
         }
 
-        private void InitializeCycle()
+        private void BeginAtDayMidpoint()
         {
-            _nightCycleCount = 0;
-            _phaseElapsed = 0f;
-            _cycleElapsed = startAtDay
-                ? 0f
-                : _config.DayDuration + _config.DuskDuration;
-            _currentPhase = startAtDay ? DayNightPhase.Day : DayNightPhase.Night_Early;
-            _onPhaseChanged?.Invoke(_currentPhase);
-            ApplyEnvironmentSettings();
+            SetNormalizedTime(GetPhaseMidpointNormalized(DayNightPhase.Day));
+        }
+
+        private void BeginAtNightEarly()
+        {
+            SetNormalizedTime(GetPhaseMidpointNormalized(DayNightPhase.Night_Early));
         }
 
         private void AdvancePhase()
@@ -231,6 +389,8 @@ namespace Ashlight.Environment
                 case DayNightPhase.Dawn:
                     _nightCycleCount++;
                     _cycleElapsed = 0f;
+                    _phaseElapsed = 0f;
+                    RebuildCurvesFromConfig();
                     SetPhase(DayNightPhase.Day);
                     break;
             }
@@ -255,7 +415,7 @@ namespace Ashlight.Environment
                 case DayNightPhase.Night_Deep:
                     return CalculateNightDeepDuration(
                         nightCycleCount,
-                        NightDeepBaseDuration,
+                        _config.NightDeepDuration,
                         _config.NightGrowthMultiplier);
                 case DayNightPhase.Dawn:
                     return _config.DawnDuration;
@@ -266,55 +426,89 @@ namespace Ashlight.Environment
 
         private void ApplyEnvironmentSettings()
         {
-            float normalizedTime = NormalizedDayTime;
-            float intensityBlend = _lightIntensityCurve.Evaluate(normalizedTime);
-            float fogBlend = _fogDensityCurve.Evaluate(normalizedTime);
-
-            _directionalLight.intensity = Mathf.Lerp(
-                _config.DayLightIntensity,
-                _config.NightLightIntensity,
-                intensityBlend);
-            _directionalLight.color = _lightColorGradient.Evaluate(normalizedTime);
-
-            RenderSettings.fogDensity = Mathf.Lerp(
-                _config.DayFogDensity,
-                _config.NightFogDensity,
-                fogBlend);
-            RenderSettings.ambientLight = _ambientLightGradient.Evaluate(normalizedTime);
+            UpdateLighting(NormalizedDayTime);
         }
 
-        private void EnsureDefaultGradients()
+        /// <summary>
+        /// Snaps the cycle to a normalized time, syncs phase timers, and immediately updates lighting.
+        /// </summary>
+        /// <param name="normalizedTime">Target position from 0 to 1 across the full cycle.</param>
+        public void SetNormalizedTime(float normalizedTime)
         {
-            if (_lightColorGradient == null || _lightColorGradient.colorKeys.Length == 0)
+            if (_config == null)
             {
-                _lightColorGradient = CreateDayNightGradient(
-                    new Color(1f, 0.96f, 0.84f),
-                    new Color(0.35f, 0.45f, 0.7f));
+                return;
             }
 
-            if (_ambientLightGradient == null || _ambientLightGradient.colorKeys.Length == 0)
+            normalizedTime = Mathf.Clamp01(normalizedTime);
+            float totalDuration = GetTotalCycleDuration(_nightCycleCount);
+            _cycleElapsed = totalDuration > 0f
+                ? normalizedTime * totalDuration
+                : 0f;
+
+            float remaining = _cycleElapsed;
+            _currentPhase = DayNightPhase.Day;
+            _phaseElapsed = 0f;
+
+            DayNightPhase[] phases =
             {
-                _ambientLightGradient = CreateDayNightGradient(
-                    _config.DayAmbientColor,
-                    _config.NightAmbientColor);
+                DayNightPhase.Day,
+                DayNightPhase.Dusk,
+                DayNightPhase.Night_Early,
+                DayNightPhase.Night_Deep,
+                DayNightPhase.Dawn
+            };
+
+            foreach (DayNightPhase phase in phases)
+            {
+                float phaseDuration = GetPhaseDuration(phase, _nightCycleCount);
+                if (phaseDuration <= 0f)
+                {
+                    continue;
+                }
+
+                if (remaining < phaseDuration)
+                {
+                    _currentPhase = phase;
+                    _phaseElapsed = remaining;
+                    break;
+                }
+
+                remaining -= phaseDuration;
             }
+
+            _onPhaseChanged?.Invoke(_currentPhase);
+            UpdateLighting(normalizedTime);
         }
 
-        private static Gradient CreateDayNightGradient(Color dayColor, Color nightColor)
+        private void UpdateLighting(float normalizedTime)
         {
-            var gradient = new Gradient();
-            gradient.SetKeys(
-                new[]
-                {
-                    new GradientColorKey(dayColor, 0f),
-                    new GradientColorKey(nightColor, 1f)
-                },
-                new[]
-                {
-                    new GradientAlphaKey(1f, 0f),
-                    new GradientAlphaKey(1f, 1f)
-                });
-            return gradient;
+            float curveTime = Mathf.Clamp01(normalizedTime);
+
+            if (_directionalLight != null)
+            {
+                _directionalLight.intensity = _lightIntensityCurve.Evaluate(curveTime);
+                _directionalLight.color = _lightColorGradient.Evaluate(curveTime);
+            }
+
+            RenderSettings.ambientLight = ambientColorGradient.Evaluate(curveTime);
+            RenderSettings.fog = true;
+            RenderSettings.fogDensity = fogDensityCurve.Evaluate(curveTime);
+            RenderSettings.fogColor = fogColorGradient.Evaluate(curveTime);
+
+            if (skyboxMaterial != null && skyboxExposureCurve != null)
+            {
+                skyboxMaterial.SetFloat("_Exposure", skyboxExposureCurve.Evaluate(curveTime));
+            }
+
+            if (_directionalLight != null &&
+                sunElevationCurve != null &&
+                sunAzimuthCurve != null)
+            {
+                float elevation = sunElevationCurve.Evaluate(curveTime);
+                float azimuth = sunAzimuthCurve.Evaluate(curveTime);
+                _directionalLight.transform.rotation = Quaternion.Euler(elevation, azimuth, 0f);
+            }
         }
 
 #if UNITY_EDITOR
@@ -324,7 +518,7 @@ namespace Ashlight.Environment
 
             if (_config != null)
             {
-                EnsureDefaultGradients();
+                RebuildCurvesFromConfig(force: true);
             }
         }
 #endif

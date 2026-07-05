@@ -1,12 +1,21 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement name="hud-root" style="flex-grow: 1; position: relative;">
+        <ui:VisualElement name="celestial-cycle-root"
+                          style="position: absolute; top: 10px; right: 16px; width: 52px; align-items: center;">
+            <ui:VisualElement name="celestial-cycle-indicator-slot"
+                              style="width: 44px; height: 44px;" />
+            <ui:Label name="phase-remaining-time"
+                      text="0:00"
+                      style="margin-top: 2px; font-size: 9px; color: rgb(200, 200, 200); -unity-text-align: middle-center; -unity-font-style: bold;" />
+        </ui:VisualElement>
+
         <ui:Label name="night-phase-label"
                   text="DAY"
-                  style="position: absolute; top: 20px; align-self: center; left: 50%; translate: -50% 0; font-size: 20px; -unity-font-style: bold; color: rgb(122, 184, 122);" />
+                  style="position: absolute; top: 45px; align-self: center; left: 50%; translate: -50% 0; font-size: 20px; -unity-font-style: bold; color: rgb(122, 184, 122);" />
 
         <ui:Label name="night-counter-label"
                   text="Night 0"
-                  style="position: absolute; top: 20px; right: 20px; font-size: 16px; color: rgb(158, 158, 158); -unity-text-align: middle-right;" />
+                  style="position: absolute; top: 12px; right: 76px; font-size: 14px; color: rgb(158, 158, 158); -unity-text-align: middle-right;" />
 
         <ui:Label name="fear-indicator"
                   text="&#9672;"

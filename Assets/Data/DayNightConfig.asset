@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f08f42efa64a411498ab9cd5ae60fbd, type: 3}
   m_Name: DayNightConfig
   m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Environment.DayNightConfig
-  dayDuration: 480
+  dayDuration: 120
   duskDuration: 120
-  nightEarlyDuration: 300
+  nightEarlyDuration: 120
+  nightDeepDuration: 300
   dawnDuration: 120
   nightGrowthMultiplier: 1.15
   dayLightIntensity: 1.25

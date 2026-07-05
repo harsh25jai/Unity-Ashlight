@@ -16,6 +16,7 @@ namespace Ashlight.UI
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(UIDocument))]
+    [DefaultExecutionOrder(-100)]
     public class HUDManager : MonoBehaviour
     {
         private const float DamageFlashDuration = 0.3f;
@@ -50,10 +51,14 @@ namespace Ashlight.UI
         private VisualElement _gameOverPanel;
         private Button _returnChurchButton;
         private Button _mainMenuButton;
+        private CelestialCycleIndicator _celestialCycleIndicator;
+        private Label _phaseRemainingLabel;
 
         private float _currentFear;
         private Coroutine _damageFlashRoutine;
         private Coroutine _grabShakeCoroutine;
+        private Coroutine _phaseTimerRoutine;
+        private Coroutine _hudInitRoutine;
         private Transform _playerTransform;
 
         /// <summary>
@@ -145,6 +150,44 @@ namespace Ashlight.UI
             return $"Night {Mathf.Max(0, nightCount)}";
         }
 
+        /// <summary>Formats remaining phase time as minutes and seconds.</summary>
+        /// <param name="seconds">Remaining seconds in the current phase.</param>
+        /// <returns>Display string such as "4:32".</returns>
+        public static string FormatPhaseRemainingTime(float seconds)
+        {
+            int totalSeconds = Mathf.Max(0, Mathf.CeilToInt(seconds));
+            int minutes = totalSeconds / 60;
+            int remainingSeconds = totalSeconds % 60;
+            return $"{minutes}:{remainingSeconds:D2}";
+        }
+
+        /// <summary>Gets phase progress from 0 at phase start to 1 at phase end.</summary>
+        /// <param name="phaseDuration">Total phase duration in seconds.</param>
+        /// <param name="remainingPhaseTime">Remaining seconds in the phase.</param>
+        /// <returns>Normalized progress through the current phase.</returns>
+        public static float GetPhaseProgress(float phaseDuration, float remainingPhaseTime)
+        {
+            if (phaseDuration <= 0f)
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp01(1f - remainingPhaseTime / phaseDuration);
+        }
+
+        /// <summary>Resolves the celestial HUD icon from normalized cycle time.</summary>
+        /// <param name="normalizedCycleTime">Position from 0 to 1 across the full cycle.</param>
+        /// <param name="config">Phase duration configuration.</param>
+        /// <param name="nightCycleCount">Completed night cycles.</param>
+        /// <returns>Continuous sun/moon display state.</returns>
+        public static CelestialDisplayState ResolveCelestialDisplay(
+            float normalizedCycleTime,
+            DayNightConfig config,
+            int nightCycleCount)
+        {
+            return CelestialCycleIndicator.ResolveDisplay(normalizedCycleTime, config, nightCycleCount);
+        }
+
         private void Awake()
         {
             _uiDocument = GetComponent<UIDocument>();
@@ -204,16 +247,56 @@ namespace Ashlight.UI
 
         private void OnEnable()
         {
+            if (_hudInitRoutine != null)
+            {
+                StopCoroutine(_hudInitRoutine);
+            }
+
+            _hudInitRoutine = StartCoroutine(InitializeHudWhenReady());
+        }
+
+        private IEnumerator InitializeHudWhenReady()
+        {
+            while (_uiDocument == null || _uiDocument.rootVisualElement == null)
+            {
+                yield return null;
+            }
+
             CacheVisualElements();
             BindEvents();
             RefreshNightDisplay(dayNightCycle != null ? dayNightCycle.CurrentPhase : DayNightPhase.Day);
             RefreshFearIndicator(_currentFear);
             HideGameOverPanel();
+
+            if (dayNightCycle != null)
+            {
+                UpdateCelestialIndicator();
+            }
+
+            if (_phaseTimerRoutine != null)
+            {
+                StopCoroutine(_phaseTimerRoutine);
+            }
+
+            _phaseTimerRoutine = StartCoroutine(UpdatePhaseTimerLoop());
+            _hudInitRoutine = null;
         }
 
         private void OnDisable()
         {
+            if (_hudInitRoutine != null)
+            {
+                StopCoroutine(_hudInitRoutine);
+                _hudInitRoutine = null;
+            }
+
             UnbindEvents();
+
+            if (_phaseTimerRoutine != null)
+            {
+                StopCoroutine(_phaseTimerRoutine);
+                _phaseTimerRoutine = null;
+            }
 
             if (_grabShakeCoroutine != null)
             {
@@ -227,11 +310,16 @@ namespace Ashlight.UI
         private void Update()
         {
             UpdateFearPulse();
+            UpdateCelestialIndicator();
         }
 
         private void CacheVisualElements()
         {
-            VisualElement root = _uiDocument.rootVisualElement;
+            VisualElement root = _uiDocument != null ? _uiDocument.rootVisualElement : null;
+            if (root == null)
+            {
+                return;
+            }
 
             _nightPhaseLabel = root.Q<Label>("night-phase-label");
             _nightCounterLabel = root.Q<Label>("night-counter-label") ?? root.Q<Label>("night-count-label");
@@ -240,9 +328,37 @@ namespace Ashlight.UI
             _gameOverPanel = root.Q<VisualElement>("game-over-panel");
             _returnChurchButton = root.Q<Button>("return-church-button");
             _mainMenuButton = root.Q<Button>("main-menu-button");
+            _phaseRemainingLabel = root.Q<Label>("phase-remaining-time");
+            EnsureCelestialCycleIndicator(root);
 
             _returnChurchButton?.RegisterCallback<ClickEvent>(_ => OnReturnToChurchClicked());
             _mainMenuButton?.RegisterCallback<ClickEvent>(_ => OnMainMenuClicked());
+        }
+
+        private void EnsureCelestialCycleIndicator(VisualElement root)
+        {
+            _celestialCycleIndicator = root.Q<CelestialCycleIndicator>("celestial-cycle-indicator");
+            if (_celestialCycleIndicator != null)
+            {
+                return;
+            }
+
+            VisualElement slot = root.Q<VisualElement>("celestial-cycle-indicator-slot");
+            VisualElement parent = slot != null ? slot.parent : root.Q<VisualElement>("celestial-cycle-root");
+            if (parent == null)
+            {
+                return;
+            }
+
+            int insertIndex = slot != null ? parent.IndexOf(slot) : 0;
+            _celestialCycleIndicator = new CelestialCycleIndicator
+            {
+                name = "celestial-cycle-indicator"
+            };
+            _celestialCycleIndicator.style.width = 44f;
+            _celestialCycleIndicator.style.height = 44f;
+            parent.Insert(insertIndex, _celestialCycleIndicator);
+            slot?.RemoveFromHierarchy();
         }
 
         private void BindEvents()
@@ -285,6 +401,8 @@ namespace Ashlight.UI
         private void OnDayNightPhaseChanged(DayNightPhase phase)
         {
             RefreshNightDisplay(phase);
+            UpdateCelestialIndicator();
+            UpdatePhaseRemainingTimeLabel();
         }
 
         private void OnFearChanged(float fear)
@@ -416,6 +534,40 @@ namespace Ashlight.UI
                 _nightCounterLabel.text = FormatNightCount(dayNightCycle.NightCycleCount);
                 _nightCounterLabel.style.color = NightCounterGrey;
             }
+        }
+
+        private void UpdateCelestialIndicator()
+        {
+            if (_celestialCycleIndicator == null || dayNightCycle == null)
+            {
+                return;
+            }
+
+            CelestialDisplayState display = ResolveCelestialDisplay(
+                dayNightCycle.NormalizedDayTime,
+                dayNightCycle.Config,
+                dayNightCycle.NightCycleCount);
+
+            _celestialCycleIndicator.ApplyDisplay(display);
+        }
+
+        private IEnumerator UpdatePhaseTimerLoop()
+        {
+            while (true)
+            {
+                UpdatePhaseRemainingTimeLabel();
+                yield return new WaitForSeconds(0.5f);
+            }
+        }
+
+        private void UpdatePhaseRemainingTimeLabel()
+        {
+            if (_phaseRemainingLabel == null || dayNightCycle == null)
+            {
+                return;
+            }
+
+            _phaseRemainingLabel.text = FormatPhaseRemainingTime(dayNightCycle.RemainingPhaseTime);
         }
 
         /// <summary>Applies maximum grab struggle screen effects when a Grabber seizes the player.</summary>

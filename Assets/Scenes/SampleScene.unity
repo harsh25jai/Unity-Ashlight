@@ -3241,7 +3241,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Ashlight.Environment.DayNightCycle
   _config: {fileID: 11400000, guid: 57668a07971a849db8f1f11688b554d5, type: 2}
   _directionalLight: {fileID: 410087040}
-  startAtDay: 0
+  startAtDay: 1
   timeScale: 1
   pauseCycleForDebug: 0
   _lightIntensityCurve:

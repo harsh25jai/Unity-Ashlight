@@ -39,5 +39,63 @@ namespace Ashlight.Environment.Tests
 
             Object.DestroyImmediate(config);
         }
+
+        [Test]
+        public void BuildLightingCurves_KeepsNightElevationWithinMoonCap()
+        {
+            DayNightConfig config = ScriptableObject.CreateInstance<DayNightConfig>();
+            DayNightLightingCurves curves = config.BuildLightingCurves(0);
+
+            float nightStart = config.GetPhaseStartNormalized(DayNightPhase.Night_Early, 0);
+            float dawnStart = config.GetPhaseStartNormalized(DayNightPhase.Dawn, 0);
+            const float moonCap = 22f;
+
+            for (int i = 0; i <= 50; i++)
+            {
+                float time = Mathf.Lerp(nightStart, dawnStart, i / 50f);
+                Assert.LessOrEqual(curves.SunElevation.Evaluate(time), moonCap);
+            }
+
+            Object.DestroyImmediate(config);
+        }
+
+        [Test]
+        public void BuildLightingCurves_SunSetsBeforeMoonArc()
+        {
+            DayNightConfig config = ScriptableObject.CreateInstance<DayNightConfig>();
+            DayNightLightingCurves curves = config.BuildLightingCurves(0);
+
+            float duskEnd = config.GetPhaseEndNormalized(DayNightPhase.Dusk, 0);
+            float nightEarlyMid = config.GetPhaseMidpointNormalized(DayNightPhase.Night_Early, 0);
+            float sunsetElevation = curves.SunElevation.Evaluate(duskEnd);
+            float nightElevation = curves.SunElevation.Evaluate(nightEarlyMid);
+
+            Assert.Less(sunsetElevation, 12f);
+            Assert.Less(nightElevation, 22f);
+            Assert.Greater(nightElevation, sunsetElevation);
+
+            Object.DestroyImmediate(config);
+        }
+
+        [Test]
+        public void BuildLightingCurves_AzimuthAdvancesContinuouslyThroughNight()
+        {
+            DayNightConfig config = ScriptableObject.CreateInstance<DayNightConfig>();
+            DayNightLightingCurves curves = config.BuildLightingCurves(0);
+
+            float duskEnd = config.GetPhaseEndNormalized(DayNightPhase.Dusk, 0);
+            float dawnStart = config.GetPhaseStartNormalized(DayNightPhase.Dawn, 0);
+            float previousAzimuth = curves.SunAzimuth.Evaluate(duskEnd);
+
+            for (int i = 1; i <= 50; i++)
+            {
+                float time = Mathf.Lerp(duskEnd, dawnStart, i / 50f);
+                float azimuth = curves.SunAzimuth.Evaluate(time);
+                Assert.GreaterOrEqual(azimuth, previousAzimuth - 0.5f);
+                previousAzimuth = azimuth;
+            }
+
+            Object.DestroyImmediate(config);
+        }
     }
 }

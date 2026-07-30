@@ -111,11 +111,11 @@ namespace Ashlight.Environment
         /// <summary>Gets the day/night configuration asset.</summary>
         public DayNightConfig Config => _config;
 
-        /// <summary>Gets the sun/moon elevation in degrees at the current normalized time.</summary>
+        /// <summary>Gets the single directional-light elevation in degrees at the current normalized time.</summary>
         public float GetSunElevation() => sunElevationCurve.Evaluate(NormalizedDayTime);
 
-        /// <summary>Gets the sun/moon azimuth in degrees at the current normalized time.</summary>
-        public float GetSunAzimuth() => sunAzimuthCurve.Evaluate(NormalizedDayTime);
+        /// <summary>Gets the single directional-light azimuth in degrees at the current normalized time.</summary>
+        public float GetSunAzimuth() => Mathf.Repeat(sunAzimuthCurve.Evaluate(NormalizedDayTime), 360f);
 
         /// <summary>Gets the normalized midpoint of a phase for the current night count.</summary>
         /// <param name="phase">Target phase.</param>
@@ -506,7 +506,7 @@ namespace Ashlight.Environment
                 sunAzimuthCurve != null)
             {
                 float elevation = sunElevationCurve.Evaluate(curveTime);
-                float azimuth = sunAzimuthCurve.Evaluate(curveTime);
+                float azimuth = Mathf.Repeat(sunAzimuthCurve.Evaluate(curveTime), 360f);
                 _directionalLight.transform.rotation = Quaternion.Euler(elevation, azimuth, 0f);
             }
         }

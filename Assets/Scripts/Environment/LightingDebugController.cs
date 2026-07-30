@@ -119,8 +119,8 @@ namespace Ashlight.Environment
                 if (dayNightCycle != null)
                 {
                     sb.AppendLine(
-                        $"SunElevation at t={dayNightCycle.NormalizedDayTime:F2}: " +
-                        $"{dayNightCycle.GetSunElevation():F1} degrees");
+                        $"CelestialElevation at t={dayNightCycle.NormalizedDayTime:F2}: " +
+                        $"{dayNightCycle.GetSunElevation():F1} degrees (single sun/moon light)");
                 }
             }
             else

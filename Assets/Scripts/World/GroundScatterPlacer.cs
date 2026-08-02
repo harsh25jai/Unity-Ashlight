@@ -130,6 +130,11 @@ namespace Ashlight.World
 
             for (int p = 0; p < patchCount; p++)
             {
+                if (terrain == null || scatterParent == null)
+                {
+                    yield break;
+                }
+
                 float centerX = (float)(rng.NextDouble() * ChunkData.ChunkSize);
                 float centerZ = (float)(rng.NextDouble() * ChunkData.ChunkSize);
                 Vector3 patchCenterLocal = new Vector3(centerX, 0f, centerZ);
@@ -151,6 +156,11 @@ namespace Ashlight.World
 
                 for (int c = 0; c < clumpCount; c++)
                 {
+                    if (terrain == null || scatterParent == null)
+                    {
+                        yield break;
+                    }
+
                     float angle = (float)(rng.NextDouble() * Mathf.PI * 2);
 
                     float distT = (float)rng.NextDouble();
@@ -198,6 +208,11 @@ namespace Ashlight.World
                         instantiatedThisFrame = 0;
                         yield return null;
                         frameStopwatch.Restart();
+
+                        if (terrain == null || scatterParent == null)
+                        {
+                            yield break;
+                        }
                     }
                 }
             }

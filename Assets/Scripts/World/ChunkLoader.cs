@@ -22,12 +22,13 @@ namespace Ashlight.World
     /// <summary>
     /// Tracks player chunk position and loads or unloads generated chunk data.
     /// </summary>
-    [DefaultExecutionOrder(-100)]
+    [DefaultExecutionOrder(150)]
     [DisallowMultipleComponent]
     public class ChunkLoader : MonoBehaviour
     {
         private const float ChunkCheckIntervalSeconds = 0.5f;
         private const int UnloadBufferChunks = 3;
+        private const float PlayerGroundClearance = 0.05f;
         private const string EnvironmentLayerName = "Environment";
         private const string ChunksParentName = "_Chunks";
 
@@ -46,6 +47,7 @@ namespace Ashlight.World
 
         private readonly Dictionary<Vector2Int, ChunkData> _loadedChunks = new Dictionary<Vector2Int, ChunkData>();
         private readonly Dictionary<Vector2Int, GameObject> _chunkObjects = new Dictionary<Vector2Int, GameObject>();
+        private readonly Dictionary<Vector2Int, Coroutine> _chunkLoadCoroutines = new Dictionary<Vector2Int, Coroutine>();
 
         private ChunkGenerator _generator;
         private Vector2Int _lastPlayerChunk;
@@ -106,6 +108,12 @@ namespace Ashlight.World
             worldGenerator.ClearPlacedChurches();
             GenerateStartingChunks();
             _lastPlayerChunk = worldGenerator.WorldToChunkCoord(player.position);
+
+            SaveSystem saveSystem = SaveSystem.Instance;
+            if (saveSystem != null)
+            {
+                saveSystem.OnLoadComplete.AddListener(OnSaveLoaded);
+            }
         }
 
         private void OnEnable()
@@ -129,6 +137,15 @@ namespace Ashlight.World
             {
                 StopCoroutine(_chunkMonitorRoutine);
                 _chunkMonitorRoutine = null;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            SaveSystem saveSystem = SaveSystem.Instance;
+            if (saveSystem != null)
+            {
+                saveSystem.OnLoadComplete.RemoveListener(OnSaveLoaded);
             }
         }
 
@@ -237,7 +254,7 @@ namespace Ashlight.World
             ApplySavedEvents(data);
             _loadedChunks[coord] = data;
             CreateTerrainMesh(data);
-            StartCoroutine(LoadChunkContentStaggered(data));
+            _chunkLoadCoroutines[data.chunkCoord] = StartCoroutine(LoadChunkContentStaggered(data));
             _onChunkLoaded?.Invoke(data);
         }
 
@@ -326,6 +343,12 @@ namespace Ashlight.World
                 return;
             }
 
+            if (_chunkLoadCoroutines.TryGetValue(coord, out Coroutine loadRoutine))
+            {
+                StopCoroutine(loadRoutine);
+                _chunkLoadCoroutines.Remove(coord);
+            }
+
             if (_chunkObjects.TryGetValue(coord, out GameObject chunkObject))
             {
                 TerrainChunkUnity terrain = chunkObject.GetComponent<TerrainChunkUnity>();
@@ -401,42 +424,55 @@ namespace Ashlight.World
             }
 
             Vector2Int coord = data.chunkCoord;
-            if (!_chunkObjects.TryGetValue(coord, out GameObject chunkObject) || chunkObject == null)
+
+            try
             {
-                yield break;
+                if (!_chunkObjects.TryGetValue(coord, out GameObject chunkObject) || chunkObject == null)
+                {
+                    yield break;
+                }
+
+                TerrainChunkUnity terrain = chunkObject.GetComponent<TerrainChunkUnity>();
+                TreePlacer treePlacer = chunkObject.GetComponent<TreePlacer>();
+                GroundScatterPlacer scatterPlacer = chunkObject.GetComponent<GroundScatterPlacer>();
+
+                if (terrain == null || treePlacer == null || scatterPlacer == null)
+                {
+                    yield break;
+                }
+
+                // TODO: Replace with treePlacer.PlaceTreesUnityTerrainAsync when frame budgeting is added.
+                treePlacer.PlaceTreesUnityTerrain(data, terrain);
+                yield return null;
+
+                if (!IsChunkLoaded(coord) || chunkObject == null)
+                {
+                    yield break;
+                }
+
+                var rng = new System.Random(data.chunkSeed + 1);
+                yield return scatterPlacer.PlaceGrassPatchesAsync(data, terrain, rng);
+                yield return null;
+
+                if (!IsChunkLoaded(coord) || chunkObject == null || terrain == null)
+                {
+                    yield break;
+                }
+
+                scatterPlacer.PlaceRocksUnityTerrain(data, terrain);
+                yield return null;
+
+                if (!IsChunkLoaded(coord) || chunkObject == null || terrain == null)
+                {
+                    yield break;
+                }
+
+                terrain.BuildNavMeshAsync();
             }
-
-            TerrainChunkUnity terrain = chunkObject.GetComponent<TerrainChunkUnity>();
-            TreePlacer treePlacer = chunkObject.GetComponent<TreePlacer>();
-            GroundScatterPlacer scatterPlacer = chunkObject.GetComponent<GroundScatterPlacer>();
-
-            if (terrain == null || treePlacer == null || scatterPlacer == null)
+            finally
             {
-                yield break;
+                _chunkLoadCoroutines.Remove(coord);
             }
-
-            // TODO: Replace with treePlacer.PlaceTreesUnityTerrainAsync when frame budgeting is added.
-            treePlacer.PlaceTreesUnityTerrain(data, terrain);
-            yield return null;
-
-            var rng = new System.Random(data.chunkSeed + 1);
-            yield return scatterPlacer.PlaceGrassPatchesAsync(data, terrain, rng);
-            yield return null;
-
-            if (!IsChunkLoaded(coord) || chunkObject == null)
-            {
-                yield break;
-            }
-
-            scatterPlacer.PlaceRocksUnityTerrain(data, terrain);
-            yield return null;
-
-            if (!IsChunkLoaded(coord) || chunkObject == null)
-            {
-                yield break;
-            }
-
-            terrain.BuildNavMeshAsync();
         }
 
         private void LinkNeighbourTerrains(Vector2Int coord, TerrainChunkUnity terrain)
@@ -556,14 +592,63 @@ namespace Ashlight.World
 
         private void GenerateStartingChunks()
         {
-            Vector2Int centreChunk = Vector2Int.zero;
+            Vector2Int centreChunk = worldGenerator.WorldToChunkCoord(player.position);
+            UpdateLoadedChunks(centreChunk);
+            SnapPlayerToTerrain();
+            Physics.SyncTransforms();
+        }
 
-            for (int x = centreChunk.x - loadRadius; x <= centreChunk.x + loadRadius; x++)
+        private void OnSaveLoaded()
+        {
+            if (!enabled || worldGenerator == null || player == null)
             {
-                for (int y = centreChunk.y - loadRadius; y <= centreChunk.y + loadRadius; y++)
-                {
-                    LoadChunk(new Vector2Int(x, y));
-                }
+                return;
+            }
+
+            Vector2Int centreChunk = worldGenerator.WorldToChunkCoord(player.position);
+            _lastPlayerChunk = centreChunk;
+            UpdateLoadedChunks(centreChunk);
+            SnapPlayerToTerrain();
+            Physics.SyncTransforms();
+        }
+
+        private void SnapPlayerToTerrain()
+        {
+            if (player == null || worldGenerator == null)
+            {
+                return;
+            }
+
+            Vector2Int chunkCoord = worldGenerator.WorldToChunkCoord(player.position);
+            if (!_chunkObjects.TryGetValue(chunkCoord, out GameObject chunkObject) || chunkObject == null)
+            {
+                return;
+            }
+
+            TerrainChunkUnity terrain = chunkObject.GetComponent<TerrainChunkUnity>();
+            if (terrain == null)
+            {
+                return;
+            }
+
+            float terrainHeight = terrain.GetHeightAtWorldPos(player.position.x, player.position.z);
+            CharacterController characterController = player.GetComponent<CharacterController>();
+            float footOffset = characterController != null
+                ? characterController.height * 0.5f - characterController.center.y + characterController.skinWidth
+                : 1f;
+
+            Vector3 snappedPosition = player.position;
+            snappedPosition.y = terrainHeight + footOffset + PlayerGroundClearance;
+
+            if (characterController != null)
+            {
+                characterController.enabled = false;
+                player.position = snappedPosition;
+                characterController.enabled = true;
+            }
+            else
+            {
+                player.position = snappedPosition;
             }
         }
 
